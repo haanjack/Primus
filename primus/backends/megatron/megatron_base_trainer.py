@@ -76,8 +76,17 @@ class MegatronBaseTrainer(BaseTrainer):
             else:
                 validated_args = original_validate_args(*args, **kwargs)
 
-            log_rank_0("validate_args() called; validating on ROCM")
-            validate_args_on_rocm(validated_args)
+            import torch
+
+            _target = getattr(self.backend_args, "target_gpu", "auto")
+            if _target == "auto":
+                _target = "amd" if getattr(torch.version, "hip", None) else "nvidia"
+
+            if _target == "amd":
+                log_rank_0("validate_args() called; validating on ROCm")
+                validate_args_on_rocm(validated_args)
+            else:
+                log_rank_0("validate_args() called; non-ROCm target, skipping ROCm-specific validation")
             return validated_args
 
         megatron_args.parse_args = patched_parse_args
