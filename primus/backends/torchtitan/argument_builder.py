@@ -166,6 +166,7 @@ class TorchTitanJobConfigBuilder:
         if "primus_turbo" in converters:
             model_cfg["converters"] = [c for c in converters if c != "primus_turbo"]
 
+
         if "primus_turbo" not in self.config:
             return
 
