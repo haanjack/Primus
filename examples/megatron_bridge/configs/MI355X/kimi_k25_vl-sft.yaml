@@ -6,7 +6,7 @@ workspace: ${PRIMUS_WORKSPACE:./output}
 modules:
   post_trainer:
     framework: megatron_bridge
-    config: pre_trainer.yaml  # Uses pre_trainer as base for SFT
+    config: sft_trainer.yaml  # Uses megatron_bridge SFT trainer base
 
     # Model to run
     model: kimi_k25_vl.yaml
