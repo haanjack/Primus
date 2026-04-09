@@ -1,0 +1,132 @@
+work_group: ${PRIMUS_TEAM:amd}
+user_name: ${PRIMUS_USER:root}
+exp_name: ${PRIMUS_EXP_NAME:kimi_k25_vl_sft_test}
+workspace: ${PRIMUS_WORKSPACE:./output}
+
+modules:
+  post_trainer:
+    framework: megatron_bridge
+    config: pre_trainer.yaml
+
+    model: kimi_k25_vl.yaml
+
+    overrides:
+      stderr_sink_level: DEBUG
+
+      # ===== Parallelism Configuration (Test: 8 GPUs on 1 node) =====
+      # Minimal parallelism for quick validation (no TP, PP, or EP)
+      # Use this for development/testing before scaling to full model
+      tensor_model_parallel_size: 1
+      pipeline_model_parallel_size: 1
+      virtual_pipeline_model_parallel_size: null
+      context_parallel_size: 1
+      sequence_parallel: false
+      expert_model_parallel_size: 1
+      expert_tensor_parallel_size: 1
+      use_megatron_fsdp: false
+
+      # ===== Fine-tuning Configuration =====
+      peft: "none"
+      packed_sequence: false
+      finetune: true
+      finetune_lr: 3.0e-04
+      min_lr: 3.0e-05
+      lr_warmup_iters: 200
+      lr_decay_iters: null
+
+      # ===== Training Iterations & Batching (Reduced for quick testing) =====
+      train_iters: 500  # Quick test run
+      global_batch_size: 8   # Small batch for single node
+      micro_batch_size: 1
+      seq_length: 4096
+      eval_iters: 0
+      eval_interval: 100
+      save_interval: 200
+
+      # ===== Data Configuration =====
+      num_workers: 8
+      split: null
+      dataloader_type: cyclic
+      pack_sequences_in_batch: false
+
+      # ===== Logging Configuration =====
+      log_interval: 1
+      log_throughput: true
+      log_timers_to_tensorboard: true
+      log_batch_size_to_tensorboard: true
+      log_learning_rate_to_tensorboard: true
+      tensorboard_log_interval: 1
+      wandb_project: null
+      wandb_entity: null
+      wandb_exp_name: null
+
+      # ===== Precision Configuration =====
+      bf16: true
+      fp16: false
+      precision_config: bf16_mixed
+      grad_reduce_in_bf16: false
+      grad_reduce_in_fp32: true
+      calculate_per_token_loss: false
+      accumulate_allreduce_grads_in_fp32: false
+
+      # ===== Recompute Configuration =====
+      recompute_granularity: full
+      recompute_method: uniform
+      recompute_num_layers: 1
+
+      # ===== DDP Configuration =====
+      use_distributed_optimizer: false
+      overlap_param_gather: false
+      overlap_grad_reduce: true
+      check_for_nan_in_grad: true
+      average_in_collective: true
+      data_parallel_sharding_strategy: "no_shard"
+
+      # ===== Communication Overlap =====
+      tp_comm_overlap: false
+      delay_wgrad_compute: false
+      overlap_moe_expert_parallel_comm: false
+
+      # ===== MoE Kernel Optimizations =====
+      moe_router_fusion: false
+      moe_permute_fusion: true
+      moe_grouped_gemm: true
+      cross_entropy_loss_fusion: true
+      cross_entropy_fusion_impl: "te"
+
+      # ===== Transformer Engine & Attention =====
+      transformer_impl: "transformer_engine"
+      use_flash_attn: true
+      attention_backend: null
+
+      # ===== CUDA Graph =====
+      cuda_graph_impl: "none"
+      cuda_graph_scope: "full"
+      cuda_graph_warmup_steps: 1
+
+      # ===== Memory & Checkpointing =====
+      fine_grained_activation_offloading: false
+      offload_modules: null
+      save_interval: 200
+      async_save: false
+      distributed_timeout_minutes: 60
+
+      # ===== Seed & Initialization =====
+      seed: 1234
+      init_method_xavier_uniform: false
+
+      # ===== Checkpoint Loading =====
+      pretrained_checkpoint: null
+      no_load_optim: true
+      load_strict: false
+
+      # ===== Other Settings =====
+      check_for_nan_in_loss_and_grad: true
+      exit_signal_handler: false
+      make_vocab_size_divisible_by: 128
+      test_mode: false
+
+      # ===== Garbage Collection =====
+      manual_gc: true
+      manual_gc_interval: 5
+      manual_gc_eval: 5
