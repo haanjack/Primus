@@ -11,7 +11,7 @@ echo "[+] Installing Megatron-Bridge dependencies..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Set up pip cache directory
-PRIMUS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+PRIMUS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../../.." && pwd)"
 DATA_PATH="${DATA_PATH:-${PRIMUS_ROOT}/data}"
 PIP_CACHE_DIR="${PIP_CACHE_DIR:-${DATA_PATH}/pip_cache}"
 
