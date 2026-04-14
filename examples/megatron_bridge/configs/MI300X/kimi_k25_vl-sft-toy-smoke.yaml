@@ -49,9 +49,9 @@ modules:
         use_flash_attn: true
 
         # ===== Disable CUDA graph for smoke test =====
-        # cuda_graph_impl=none and empty scope disable CUDA graph capture
+        # cuda_graph_impl=none disables CUDA graph capture; scope must be null (not "")
         cuda_graph_impl: "none"
-        cuda_graph_scope: ""
+        cuda_graph_scope: null
         cuda_graph_warmup_steps: 0
 
       train:
