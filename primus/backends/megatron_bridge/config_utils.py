@@ -214,7 +214,7 @@ def load_recipe_config(backend_args: SimpleNamespace) -> Any:
     backend_dict = namespace_to_dict(backend_args)
 
     # Call recipe function with filtered dict
-    config_container = auto_filter_and_call(recipe_func, backend_dict)
+    config_container = auto_filter_and_call(recipe_func, backend_dict, max_retries=200)
     log_rank_0(f"Successfully loaded recipe: {full_module_path}.{function_name}()")
     # log_dict_aligned("[debug]ConfigContainer", config_container.to_dict())
 
