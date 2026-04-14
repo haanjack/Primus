@@ -29,6 +29,10 @@ DATA_PATH="$(realpath "${DATA_PATH:-./data}")"
 TOY_MODEL_PATH="${DATA_PATH}/kimi_k25_vl_toy"
 HF_HOME="${HF_HOME:-${DATA_PATH}/huggingface}"
 
+# GPU selection (default: GPUs 0-3 to avoid conflicts with other users)
+GPUS_PER_NODE="${GPUS_PER_NODE:-4}"
+HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0,1,2,3}"
+
 # Optional
 WANDB_API_KEY="${WANDB_API_KEY:-}"
 
@@ -62,6 +66,8 @@ cd "$WORKSPACE"
 ./primus-cli container \
     --image "$CONTAINER_IMAGE" \
     --env DATA_PATH="$DATA_PATH" \
+    --env GPUS_PER_NODE="$GPUS_PER_NODE" \
+    --env HIP_VISIBLE_DEVICES="$HIP_VISIBLE_DEVICES" \
     ${HF_HOME:+--env HF_HOME="$HF_HOME"} \
     ${WANDB_API_KEY:+--env WANDB_API_KEY="$WANDB_API_KEY"} \
     -- train posttrain --config "$CONFIG_FILE"

@@ -34,7 +34,7 @@ modules:
 
       # ===== Training Iterations & Batching (5-iteration smoke test) =====
       train_iters: 5
-      global_batch_size: 2
+      global_batch_size: 4
       micro_batch_size: 1
       seq_length: 1024
       eval_iters: 0
