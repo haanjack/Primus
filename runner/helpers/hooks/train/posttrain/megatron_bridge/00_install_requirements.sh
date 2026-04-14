@@ -26,4 +26,9 @@ pip install --cache-dir="${PIP_CACHE_DIR}" -U "datasets>=4.0.0" || { echo "[ERRO
 
 pip install --cache-dir="${PIP_CACHE_DIR}" -r "${SCRIPT_DIR}/requirements-megatron-bridge.txt"
 
+# Install emerging-optimizers (Muon optimizer, required by kimi_k25_vl recipe)
+pip install --cache-dir="${PIP_CACHE_DIR}" -e "${PRIMUS_ROOT}/third_party/Emerging-Optimizers" 2>/dev/null || \
+  pip install --cache-dir="${PIP_CACHE_DIR}" "emerging-optimizers" 2>/dev/null || \
+  echo "[WARNING] Could not install emerging-optimizers; Muon optimizer will not be available"
+
 echo "[OK] Megatron-Bridge dependencies installed"
