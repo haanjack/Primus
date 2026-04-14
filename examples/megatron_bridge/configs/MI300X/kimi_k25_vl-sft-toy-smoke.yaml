@@ -73,3 +73,4 @@ modules:
         sequence_length: 1024
         num_workers: 2
         pack_sequences_in_batch: false
+        trust_remote_code: true
