@@ -32,6 +32,9 @@ HF_HOME="${HF_HOME:-${DATA_PATH}/huggingface}"
 # GPU selection (default: GPUs 0-3 to avoid conflicts with other users)
 GPUS_PER_NODE="${GPUS_PER_NODE:-4}"
 HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0,1,2,3}"
+# ROCR_VISIBLE_DEVICES restricts ROCm runtime-level device access; must match
+# HIP_VISIBLE_DEVICES to avoid KFD conflicts with other containers on the node.
+ROCR_VISIBLE_DEVICES="${ROCR_VISIBLE_DEVICES:-${HIP_VISIBLE_DEVICES}}"
 
 # Optional
 WANDB_API_KEY="${WANDB_API_KEY:-}"
@@ -68,6 +71,7 @@ cd "$WORKSPACE"
     --env DATA_PATH="$DATA_PATH" \
     --env GPUS_PER_NODE="$GPUS_PER_NODE" \
     --env HIP_VISIBLE_DEVICES="$HIP_VISIBLE_DEVICES" \
+    --env ROCR_VISIBLE_DEVICES="$ROCR_VISIBLE_DEVICES" \
     ${HF_HOME:+--env HF_HOME="$HF_HOME"} \
     ${WANDB_API_KEY:+--env WANDB_API_KEY="$WANDB_API_KEY"} \
     -- train posttrain --config "$CONFIG_FILE"
