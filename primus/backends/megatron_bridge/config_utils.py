@@ -176,9 +176,8 @@ def _merge_dict_to_dataclass(target: Any, source_dict: dict, path: str = "") -> 
             target_type = type(target_value)
             source_type = type(source_value)
 
-            # Allow assignment if types match or target is None (uninitialized)
-            # if target_value is None or source_type == target_type or isinstance(source_value, target_type):
-            if source_type == target_type or isinstance(source_value, target_type):
+            # Allow assignment if types match, source is a subtype, or target is None (uninitialized Optional)
+            if target_value is None or source_type == target_type or isinstance(source_value, target_type):
                 setattr(target, field_name, source_value)
                 log_rank_0(f"  ↳ Set {current_path} = {source_value}")
             else:
