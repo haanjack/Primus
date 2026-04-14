@@ -112,8 +112,9 @@ if [[ "$NODE_RANK" == "0" ]]; then
     LOG_INFO_RANK0 "[+] Converting HF checkpoint to Megatron format..."
     mkdir -p "$(dirname "${MEGATRON_PATH}")"
 
-    # Create lock file
+    # Create lock file; clean it up if we exit unexpectedly
     touch "$LOCK_FILE"
+    trap 'rm -f "$LOCK_FILE"' EXIT
 
     # Set up Python path for Megatron-Bridge
     export PYTHONPATH="${PRIMUS_ROOT}/third_party/Megatron-Bridge/src:${PRIMUS_ROOT}/third_party/Megatron-Bridge/3rdparty/Megatron-LM:${PYTHONPATH:-}"
@@ -125,6 +126,7 @@ if [[ "$NODE_RANK" == "0" ]]; then
     # Create done file and remove lock
     touch "$DONE_FILE"
     rm -f "$LOCK_FILE"
+    trap - EXIT
 
     LOG_SUCCESS_RANK0 "Checkpoint prepared at ${MEGATRON_PATH}"
 else
