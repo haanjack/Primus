@@ -37,10 +37,6 @@ modules:
         moe_flex_dispatcher_backend: allgather
         moe_enable_deepep: false
 
-        # ===== Toy model has n_shared_experts=0; bridge computes 0*size=0 which fails
-        # the validator (must be None or >0). Override to None to skip the check.
-        moe_shared_expert_intermediate_size: null
-        moe_shared_expert_overlap: false
 
         # ===== Recompute =====
         recompute_granularity: full
