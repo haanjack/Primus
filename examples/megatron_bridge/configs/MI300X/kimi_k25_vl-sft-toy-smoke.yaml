@@ -13,72 +13,66 @@ modules:
     overrides:
       stderr_sink_level: DEBUG
 
-      # ===== Checkpoint Loading =====
-      # null = random init, skips Phase A conversion
-      pretrained_checkpoint: null
-
-      # ===== Model Override (toy model arch + image processor) =====
+      # ===== Recipe function parameters (passed via auto_filter_and_call) =====
+      # hf_path: passed to kimi_k25_vl_sft_config(hf_path=...) to use toy model
       hf_path: /home/amd/jack.han/Primus/data/kimi_k25_vl_toy
 
-      # ===== Parallelism (minimal for 4-GPU smoke test) =====
-      tensor_model_parallel_size: 1
-      pipeline_model_parallel_size: 1
-      virtual_pipeline_model_parallel_size: null
-      pipeline_model_parallel_layout: null
-      context_parallel_size: 1
-      sequence_parallel: false
-      expert_model_parallel_size: 1
-      expert_tensor_parallel_size: 1
+      # ===== Model sub-config (cfg.model.*) =====
+      model:
+        # Parallelism: minimal for 4-GPU smoke test (recipe defaults: TP=2, PP=16, EP=32)
+        tensor_model_parallel_size: 1
+        pipeline_model_parallel_size: 1
+        virtual_pipeline_model_parallel_size: null
+        pipeline_model_parallel_layout: null
+        context_parallel_size: 1
+        sequence_parallel: false
+        expert_model_parallel_size: 1
+        expert_tensor_parallel_size: 1
 
-      # ===== MoE Dispatcher (EP=1 requires allgather, not alltoall/deepep) =====
-      moe_token_dispatcher_type: allgather
-      moe_flex_dispatcher_backend: allgather
-      moe_enable_deepep: false
-      # shared expert overlap requires alltoall; disable for EP=1 allgather
-      moe_shared_expert_overlap: false
+        # MoE Dispatcher: EP=1 requires allgather, not alltoall/deepep
+        moe_token_dispatcher_type: allgather
+        moe_flex_dispatcher_backend: allgather
+        moe_enable_deepep: false
+        # shared expert overlap requires alltoall; disable for EP=1 allgather
+        moe_shared_expert_overlap: false
 
-      # ===== Recompute =====
-      recompute_granularity: full
-      recompute_method: uniform
-      recompute_num_layers: 1
+        # Recompute
+        recompute_granularity: full
+        recompute_method: uniform
+        recompute_num_layers: 1
 
-      # ===== Disable CUDA graph for smoke test =====
-      # cuda_graph_scope must be null (not "") to avoid KeyError in CudaGraphScope enum
-      cuda_graph_impl: "none"
-      cuda_graph_scope: null
-      cuda_graph_warmup_steps: 0
+        # Disable CUDA graph for smoke test
+        # cuda_graph_scope must be null (not "") to avoid KeyError in CudaGraphScope enum
+        cuda_graph_impl: "none"
+        cuda_graph_scope: null
+        cuda_graph_warmup_steps: 0
 
-      # ===== Precision =====
-      precision_config: bf16_mixed
-      comm_overlap_config: null
+      # ===== Training sub-config (cfg.train.*) =====
+      train:
+        train_iters: 5
+        global_batch_size: 4
+        micro_batch_size: 1
+        manual_gc: true
+        manual_gc_interval: 5
 
-      # ===== Training (5-iteration smoke test) =====
-      train_iters: 5
-      global_batch_size: 4
-      micro_batch_size: 1
-      eval_iters: 0
-      eval_interval: 100
-      save_interval: 10000
+      # ===== Checkpoint sub-config (cfg.checkpoint.*) =====
+      checkpoint:
+        pretrained_checkpoint: null
+        finetune: false
+        save_interval: 10000
 
-      # ===== Fine-tuning =====
-      finetune: true
-      finetune_lr: 3.0e-04
-      min_lr: 0.0
-      lr_warmup_iters: 0
-      lr_decay_iters: null
+      # ===== Dataset sub-config (cfg.dataset.*) =====
+      dataset:
+        seq_length: 1024
+        num_workers: 2
+        pack_sequences_in_batch: false
 
-      # ===== Logging =====
-      log_interval: 1
+      # ===== Validation sub-config (cfg.validation.*) =====
+      validation:
+        eval_iters: 0
+        eval_interval: 10000
 
-      # ===== Dataset =====
-      seq_length: 1024
-      num_workers: 2
-      pack_sequences_in_batch: false
-      trust_remote_code: true
-
-      # ===== Misc =====
-      seed: 1234
-      manual_gc: true
-      manual_gc_interval: 5
-      peft: "none"
-      packed_sequence: false
+      # ===== Scheduler sub-config (cfg.scheduler.*) =====
+      scheduler:
+        lr_warmup_iters: 0
+        lr_decay_iters: 5
