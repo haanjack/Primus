@@ -155,8 +155,12 @@ def _merge_dict_to_dataclass(target: Any, source_dict: dict, path: str = "") -> 
 
         source_value = source_dict[field_name]
 
-        # Skip None values
+        # Apply None overrides explicitly — the source dict was user-authored, so
+        # an explicit null key means "clear this field", not "I have no opinion".
         if source_value is None:
+            current_path = f"{path}.{field_name}" if path else field_name
+            setattr(target, field_name, None)
+            log_rank_0(f"  ↳ Set {current_path} = None (explicit override)")
             continue
 
         current_path = f"{path}.{field_name}" if path else field_name
