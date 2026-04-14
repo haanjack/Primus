@@ -48,10 +48,8 @@ modules:
         # ===== Attention =====
         use_flash_attn: true
 
-        # ===== Disable FP8 / TE / CUDA graph for smoke test =====
-        # transformer_impl=local avoids TE get_int_dtype trace errors on toy model
-        transformer_impl: local
-        # cuda_graph_scope="" disables CUDA graph capture
+        # ===== Disable CUDA graph for smoke test =====
+        # cuda_graph_impl=none and empty scope disable CUDA graph capture
         cuda_graph_impl: "none"
         cuda_graph_scope: ""
         cuda_graph_warmup_steps: 0
