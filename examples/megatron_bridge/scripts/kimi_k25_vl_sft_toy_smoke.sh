@@ -13,7 +13,7 @@
 #
 # Prerequisites:
 #   - data/kimi_k25_vl_toy/ must exist (toy HF model)
-#   - 8x AMD MI300X GPUs required
+#   - 4x AMD MI300X GPUs required (default; override with GPUS_PER_NODE)
 #   - No HF_TOKEN needed (uses local toy model)
 #
 
@@ -75,6 +75,6 @@ cd "$WORKSPACE"
 echo ""
 echo "========================================"
 echo "Smoke test complete. Check logs for:"
-echo "  - No crash (all 8 ranks exited 0)"
+echo "  - No crash (all ranks exited 0)"
 echo "  - Finite loss across 5 iterations"
 echo "========================================"

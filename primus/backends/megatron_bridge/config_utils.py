@@ -216,8 +216,24 @@ def load_recipe_config(backend_args: SimpleNamespace) -> Any:
     # Convert backend_args to dict once (used for both recipe call and config override)
     backend_dict = namespace_to_dict(backend_args)
 
+    # Strip Primus-internal keys that are never valid recipe function parameters.
+    # Without this, auto_filter_and_call retries once per invalid key, producing
+    # noisy warning logs for every config load.
+    _PRIMUS_INTERNAL_KEYS = {
+        "trainable",
+        "sink_level",
+        "file_sink_level",
+        "stderr_sink_level",
+        "stage",
+        "enable_primus_turbo",
+        "use_turbo_attention",
+        "use_turbo_parallel_linear",
+    }
+    for key in _PRIMUS_INTERNAL_KEYS:
+        backend_dict.pop(key, None)
+
     # Call recipe function with filtered dict
-    config_container = auto_filter_and_call(recipe_func, backend_dict, max_retries=200)
+    config_container = auto_filter_and_call(recipe_func, backend_dict)
     log_rank_0(f"Successfully loaded recipe: {full_module_path}.{function_name}()")
     # log_dict_aligned("[debug]ConfigContainer", config_container.to_dict())
 

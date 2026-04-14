@@ -71,14 +71,15 @@ def test_toy_smoke_config_ep1_dispatcher_settings():
     cfg = load_primus_config(config_path, cli_args=None)
     post_trainer = get_module_config(cfg, "post_trainer")
     params = post_trainer.params
-    assert params.expert_model_parallel_size == 1, "Smoke test should use EP=1"
-    assert params.moe_token_dispatcher_type == "allgather", (
+    # Check nested model overrides (these are what _merge_dict_to_dataclass uses)
+    assert params.model.expert_model_parallel_size == 1, "Smoke test should use EP=1"
+    assert params.model.moe_token_dispatcher_type == "allgather", (
         "EP=1 requires allgather dispatcher, not alltoall"
     )
-    assert params.moe_flex_dispatcher_backend == "allgather", (
+    assert params.model.moe_flex_dispatcher_backend == "allgather", (
         "EP=1 requires allgather backend, not deepep"
     )
-    assert params.moe_enable_deepep is False, "deepep requires EP>1"
+    assert params.model.moe_enable_deepep is False, "deepep requires EP>1"
 
 
 def test_toy_smoke_config_minimal_iters():
@@ -86,4 +87,36 @@ def test_toy_smoke_config_minimal_iters():
     config_path = EXAMPLES_DIR / "MI300X" / "kimi_k25_vl-sft-toy-smoke.yaml"
     cfg = load_primus_config(config_path, cli_args=None)
     post_trainer = get_module_config(cfg, "post_trainer")
-    assert post_trainer.params.train_iters == 5
+    # train_iters is now under the nested train: sub-config
+    assert post_trainer.params.train.train_iters == 5
+
+
+def test_toy_smoke_config_nested_model_overrides():
+    """Verify nested overrides exist in parsed config (pre-ConfigContainer).
+
+    These nested dicts are what _merge_dict_to_dataclass uses to set fields
+    on ConfigContainer.model, ConfigContainer.train, etc. Flat top-level keys
+    would be silently ignored.
+    """
+    config_path = EXAMPLES_DIR / "MI300X" / "kimi_k25_vl-sft-toy-smoke.yaml"
+    cfg = load_primus_config(config_path, cli_args=None)
+    post_trainer = get_module_config(cfg, "post_trainer")
+    params = post_trainer.params
+
+    # model overrides must be nested under params.model
+    assert hasattr(params, "model"), "model overrides missing from params"
+    assert params.model.tensor_model_parallel_size == 1
+    assert params.model.pipeline_model_parallel_size == 1
+    assert params.model.expert_model_parallel_size == 1
+
+    # train overrides must be nested under params.train
+    assert hasattr(params, "train"), "train overrides missing from params"
+    assert params.train.train_iters == 5
+    assert params.train.global_batch_size == 4
+
+    # checkpoint overrides must be nested under params.checkpoint
+    assert hasattr(params, "checkpoint"), "checkpoint overrides missing from params"
+
+    # scheduler overrides must be nested under params.scheduler
+    assert hasattr(params, "scheduler"), "scheduler overrides missing from params"
+    assert params.scheduler.lr_warmup_iters == 0

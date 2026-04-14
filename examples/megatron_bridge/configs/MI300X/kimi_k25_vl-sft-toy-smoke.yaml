@@ -15,7 +15,7 @@ modules:
 
       # ===== Recipe function parameters (passed via auto_filter_and_call) =====
       # hf_path: passed to kimi_k25_vl_sft_config(hf_path=...) to use toy model
-      hf_path: /home/amd/jack.han/Primus/data/kimi_k25_vl_toy
+      hf_path: ${DATA_PATH:./data}/kimi_k25_vl_toy
 
       # ===== Checkpoint Loading =====
       # null = random init; also kept top-level so 01_convert_checkpoints.sh hook can read it
@@ -70,6 +70,7 @@ modules:
         seq_length: 1024
         num_workers: 2
         pack_sequences_in_batch: false
+        trust_remote_code: true
 
       # ===== Validation sub-config (cfg.validation.*) =====
       validation:
