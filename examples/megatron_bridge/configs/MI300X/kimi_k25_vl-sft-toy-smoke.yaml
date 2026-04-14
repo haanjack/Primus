@@ -36,6 +36,8 @@ modules:
         moe_token_dispatcher_type: allgather
         moe_flex_dispatcher_backend: allgather
         moe_enable_deepep: false
+        # shared expert overlap requires alltoall; disable for EP=1 allgather
+        moe_shared_expert_overlap: false
 
 
         # ===== Recompute =====
