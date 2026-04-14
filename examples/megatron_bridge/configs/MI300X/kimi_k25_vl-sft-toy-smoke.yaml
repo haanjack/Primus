@@ -20,63 +20,65 @@ modules:
       # ===== Model Override (toy model arch + image processor) =====
       hf_path: /home/amd/jack.han/Primus/data/kimi_k25_vl_toy
 
-      # ConfigContainer nested structure: model.*, train.*, dataset.*
-      model:
-        # ===== Parallelism (minimal for 4-GPU smoke test) =====
-        tensor_model_parallel_size: 1
-        pipeline_model_parallel_size: 1
-        virtual_pipeline_model_parallel_size: null
-        pipeline_model_parallel_layout: null
-        context_parallel_size: 1
-        sequence_parallel: false
-        expert_model_parallel_size: 1
-        expert_tensor_parallel_size: 1
+      # ===== Parallelism (minimal for 4-GPU smoke test) =====
+      tensor_model_parallel_size: 1
+      pipeline_model_parallel_size: 1
+      virtual_pipeline_model_parallel_size: null
+      pipeline_model_parallel_layout: null
+      context_parallel_size: 1
+      sequence_parallel: false
+      expert_model_parallel_size: 1
+      expert_tensor_parallel_size: 1
 
-        # ===== MoE Dispatcher (EP=1 requires allgather, not alltoall/deepep) =====
-        moe_token_dispatcher_type: allgather
-        moe_flex_dispatcher_backend: allgather
-        moe_enable_deepep: false
-        # shared expert overlap requires alltoall; disable for EP=1 allgather
-        moe_shared_expert_overlap: false
+      # ===== MoE Dispatcher (EP=1 requires allgather, not alltoall/deepep) =====
+      moe_token_dispatcher_type: allgather
+      moe_flex_dispatcher_backend: allgather
+      moe_enable_deepep: false
+      # shared expert overlap requires alltoall; disable for EP=1 allgather
+      moe_shared_expert_overlap: false
 
+      # ===== Recompute =====
+      recompute_granularity: full
+      recompute_method: uniform
+      recompute_num_layers: 1
 
-        # ===== Recompute =====
-        recompute_granularity: full
-        recompute_method: uniform
-        recompute_num_layers: 1
+      # ===== Disable CUDA graph for smoke test =====
+      # cuda_graph_scope must be null (not "") to avoid KeyError in CudaGraphScope enum
+      cuda_graph_impl: "none"
+      cuda_graph_scope: null
+      cuda_graph_warmup_steps: 0
 
-        # ===== Attention =====
-        use_flash_attn: true
+      # ===== Precision =====
+      precision_config: bf16_mixed
+      comm_overlap_config: null
 
-        # ===== Disable CUDA graph for smoke test =====
-        # cuda_graph_impl=none disables CUDA graph capture; scope must be null (not "")
-        cuda_graph_impl: "none"
-        cuda_graph_scope: null
-        cuda_graph_warmup_steps: 0
+      # ===== Training (5-iteration smoke test) =====
+      train_iters: 5
+      global_batch_size: 4
+      micro_batch_size: 1
+      eval_iters: 0
+      eval_interval: 100
+      save_interval: 10000
 
-      train:
-        # ===== 5-iteration smoke test =====
-        train_iters: 5
-        global_batch_size: 4
-        micro_batch_size: 1
-        eval_iters: 0
-        eval_interval: 100
-        save_interval: 10
+      # ===== Fine-tuning =====
+      finetune: true
+      finetune_lr: 3.0e-04
+      min_lr: 0.0
+      lr_warmup_iters: 0
+      lr_decay_iters: null
 
-        # ===== Fine-tuning =====
-        finetune: true
-        finetune_lr: 3.0e-04
+      # ===== Logging =====
+      log_interval: 1
 
-        # ===== Logging =====
-        log_interval: 1
+      # ===== Dataset =====
+      seq_length: 1024
+      num_workers: 2
+      pack_sequences_in_batch: false
+      trust_remote_code: true
 
-        # ===== Misc =====
-        seed: 1234
-        manual_gc: true
-        manual_gc_interval: 5
-
-      dataset:
-        sequence_length: 1024
-        num_workers: 2
-        pack_sequences_in_batch: false
-        trust_remote_code: true
+      # ===== Misc =====
+      seed: 1234
+      manual_gc: true
+      manual_gc_interval: 5
+      peft: "none"
+      packed_sequence: false
