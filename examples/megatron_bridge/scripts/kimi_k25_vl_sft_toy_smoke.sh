@@ -64,7 +64,7 @@ cd "$WORKSPACE"
     --env DATA_PATH="$DATA_PATH" \
     ${HF_HOME:+--env HF_HOME="$HF_HOME"} \
     ${WANDB_API_KEY:+--env WANDB_API_KEY="$WANDB_API_KEY"} \
-    -v "$DATA_PATH":"$DATA_PATH" \
+    --volume "$DATA_PATH":"$DATA_PATH" \
     -- train posttrain --config "$CONFIG_FILE"
 
 echo ""
