@@ -24,8 +24,8 @@ CONTAINER_IMAGE="${CONTAINER_IMAGE:-rocm/primus:v26.2}"
 CONFIG_FILE="${CONFIG_FILE:-examples/megatron_bridge/configs/MI300X/kimi_k25_vl-sft-toy-smoke.yaml}"
 WORKSPACE="${WORKSPACE:-.}"
 
-# Data paths
-DATA_PATH="${DATA_PATH:-./data}"
+# Data paths (must be absolute for Docker bind mounts)
+DATA_PATH="$(realpath "${DATA_PATH:-./data}")"
 TOY_MODEL_PATH="${DATA_PATH}/kimi_k25_vl_toy"
 HF_HOME="${HF_HOME:-${DATA_PATH}/huggingface}"
 
@@ -64,7 +64,6 @@ cd "$WORKSPACE"
     --env DATA_PATH="$DATA_PATH" \
     ${HF_HOME:+--env HF_HOME="$HF_HOME"} \
     ${WANDB_API_KEY:+--env WANDB_API_KEY="$WANDB_API_KEY"} \
-    --volume "$DATA_PATH":"$DATA_PATH" \
     -- train posttrain --config "$CONFIG_FILE"
 
 echo ""
