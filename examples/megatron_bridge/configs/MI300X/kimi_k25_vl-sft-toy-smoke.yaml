@@ -66,9 +66,10 @@ modules:
       checkpoint:
         pretrained_checkpoint: null
         finetune: false
+        # Disable checkpoint saving entirely for smoke test
+        # (avoids nvidia_resiliency_ext version mismatch in the container)
+        save: null
         save_interval: 10000
-        async_save: false
-        async_strategy: mcore
 
       # ===== Dataset sub-config (cfg.dataset.*) =====
       dataset:
