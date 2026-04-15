@@ -45,6 +45,17 @@ def build_job_config_from_namespace(ns: SimpleNamespace) -> Any:
     # Step 1: Convert namespace to dict
     cfg_dict = namespace_to_dict(ns)
 
+    # Step 1b: Remove primus_turbo from model.converters when the module
+    # is unavailable (e.g. on CUDA).  This mirrors Megatron's patch-guard
+    # pattern — the converter is never registered so the name must be
+    # stripped to avoid a KeyError during build_model_converters().
+    if importlib.util.find_spec("primus_turbo") is None:
+        converters = cfg_dict.get("model", {}).get("converters", [])
+        if "primus_turbo" in converters:
+            cfg_dict.setdefault("model", {})["converters"] = [
+                c for c in converters if c != "primus_turbo"
+            ]
+
     # Step 2: Extract and preserve Primus-specific configuration
     primus_config = cfg_dict.pop("primus", None)
 
