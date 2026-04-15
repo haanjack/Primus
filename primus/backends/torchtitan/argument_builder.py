@@ -159,6 +159,13 @@ class TorchTitanJobConfigBuilder:
         This method ensures all turbo-related flags are forced to False regardless
         of user configuration, preventing misconfiguration and runtime errors.
         """
+        # Remove primus_turbo from model.converters to prevent the converter
+        # from being instantiated (it imports primus_turbo which is AMD-only).
+        model_cfg = self.config.get("model", {})
+        converters = model_cfg.get("converters", [])
+        if "primus_turbo" in converters:
+            model_cfg["converters"] = [c for c in converters if c != "primus_turbo"]
+
         if "primus_turbo" not in self.config:
             return
 

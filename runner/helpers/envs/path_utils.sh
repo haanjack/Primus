@@ -63,5 +63,7 @@ ensure_rocm_ld_library_path() {
         rocm_lib="$(compgen -G '/opt/rocm-*/lib' | head -n1 || true)"
     fi
 
-    [[ -n "$rocm_lib" ]] && path_prepend_unique LD_LIBRARY_PATH "$rocm_lib"
+    if [[ -n "$rocm_lib" ]]; then
+        path_prepend_unique LD_LIBRARY_PATH "$rocm_lib"
+    fi
 }

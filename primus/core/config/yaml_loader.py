@@ -43,7 +43,13 @@ def _resolve_env(obj):
     if isinstance(obj, list):
         return [_resolve_env(v) for v in obj]
     if isinstance(obj, str):
-        return _resolve_env_in_string(obj)
+        result = _resolve_env_in_string(obj)
+        # No env-var substitution occurred — still try numeric conversion
+        # so that bare scientific notation like 1e-5 (parsed as str by
+        # PyYAML SafeLoader) becomes a proper float.
+        if result is obj:
+            return _try_numeric(result)
+        return result
     return obj
 
 
