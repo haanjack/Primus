@@ -101,10 +101,10 @@ class TorchTitanJobConfigBuilder:
         # Directly merge into the working configuration
         self.config = deep_merge(self.config, values_dict)
 
-        # Force all Primus-Turbo flags to False when target_gpu is nvidia
-        # (Primus-Turbo is AMD-only; NVIDIA GPUs don't support these features)
-        if self.config.get("target_gpu") == "nvidia":
-            self._disable_primus_turbo_for_nvidia()
+        # Force all Primus-Turbo flags to False when target_gpu is cuda
+        # (Primus-Turbo is AMD-only; CUDA does not support these features)
+        if self.config.get("target_gpu") == "cuda":
+            self._disable_primus_turbo_for_cuda()
 
         return self
 
@@ -151,11 +151,11 @@ class TorchTitanJobConfigBuilder:
     # ------------------------------------------------------------------
     # GPU-specific configuration handling
     # ------------------------------------------------------------------
-    def _disable_primus_turbo_for_nvidia(self) -> None:
+    def _disable_primus_turbo_for_cuda(self) -> None:
         """
-        Disable all Primus-Turbo features when running on NVIDIA GPUs.
+        Disable all Primus-Turbo features when running on CUDA.
 
-        Primus-Turbo optimizations are AMD-specific and not compatible with NVIDIA.
+        Primus-Turbo optimizations are AMD-specific and not compatible with CUDA.
         This method ensures all turbo-related flags are forced to False regardless
         of user configuration, preventing misconfiguration and runtime errors.
         """

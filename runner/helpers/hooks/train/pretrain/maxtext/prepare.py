@@ -208,7 +208,7 @@ def main():
     if target_gpu == "auto":
         import torch
 
-        target_gpu = "amd" if getattr(torch.version, "hip", None) else "nvidia"
+        target_gpu = "amd" if getattr(torch.version, "hip", None) else "cuda"
     log_info(f"Target GPU: {target_gpu}")
 
     # XLA/JAX settings (common to both AMD and NVIDIA)

@@ -108,10 +108,10 @@ class MegatronArgBuilder:
             if key in megatron_keys:
                 self.overrides[key] = value
 
-        # Force primus_turbo settings to False when target_gpu is nvidia
-        # (Primus-Turbo is AMD-only; NVIDIA GPUs don't support these features)
-        if self.overrides.get("target_gpu") == "nvidia":
-            self._disable_primus_turbo_for_nvidia()
+        # Force primus_turbo settings to False when target_gpu is cuda
+        # (Primus-Turbo is AMD-only; CUDA does not support these features)
+        if self.overrides.get("target_gpu") == "cuda":
+            self._disable_primus_turbo_for_cuda()
 
         return self
 
@@ -154,12 +154,12 @@ class MegatronArgBuilder:
     # ------------------------------------------------------------------
     # GPU-specific configuration handling
     # ------------------------------------------------------------------
-    def _disable_primus_turbo_for_nvidia(self) -> None:
+    def _disable_primus_turbo_for_cuda(self) -> None:
         """
-        Disable Primus-Turbo when running on NVIDIA GPUs.
+        Disable Primus-Turbo when running on CUDA.
 
-        Primus-Turbo optimizations are AMD-specific and not compatible with NVIDIA.
+        Primus-Turbo optimizations are AMD-specific and not compatible with CUDA.
         This method ensures enable_primus_turbo is forced to False when target_gpu
-        is 'nvidia', overriding any user configuration.
+        is 'cuda', overriding any user configuration.
         """
         self.overrides["enable_primus_turbo"] = False
