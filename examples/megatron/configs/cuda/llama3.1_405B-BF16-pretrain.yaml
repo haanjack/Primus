@@ -61,5 +61,5 @@ modules:
 
       use_distributed_optimizer: true
       overlap_param_gather: true
-      gradient_accumulation_fusion: true
+      gradient_accumulation_fusion: false
       overlap_grad_reduce: true

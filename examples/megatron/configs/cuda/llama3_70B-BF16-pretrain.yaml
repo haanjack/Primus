@@ -73,7 +73,7 @@ modules:
       recompute_num_layers: 80 # int
 
       # Turbo
-      enable_primus_turbo: true
+      enable_primus_turbo: false
       use_turbo_attention: false
       use_turbo_grouped_mlp: false
 

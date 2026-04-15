@@ -53,7 +53,7 @@ modules:
       overlap_param_gather: true
       use_torch_fsdp2: false
       use_distributed_optimizer: true
-      gradient_accumulation_fusion: true
+      gradient_accumulation_fusion: false
       ckpt_format: torch
 
       # data
@@ -82,12 +82,12 @@ modules:
       moe_use_legacy_grouped_gemm: true
 
       # Turbo
-      enable_primus_turbo: true
+      enable_primus_turbo: false
       use_turbo_attention: false
       use_turbo_grouped_mlp: false
 
       # deepep
-      use_turbo_deepep: true
+      use_turbo_deepep: false
       moe_shared_expert_overlap: false
       moe_router_dtype: fp32
 

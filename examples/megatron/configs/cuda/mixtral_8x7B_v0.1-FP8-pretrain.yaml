@@ -71,7 +71,7 @@ modules:
       cross_entropy_loss_fusion: true
 
       # Turbo
-      enable_primus_turbo: true
+      enable_primus_turbo: false
       use_turbo_attention: false
       use_turbo_grouped_mlp: false
 
