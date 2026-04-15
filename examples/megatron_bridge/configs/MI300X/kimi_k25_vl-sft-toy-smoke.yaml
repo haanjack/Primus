@@ -40,6 +40,9 @@ modules:
         # shared expert overlap requires alltoall; disable for EP=1 allgather
         moe_shared_expert_overlap: false
 
+        # Disable TE triton-based MoE permutation (get_int_dtype Triton JIT error)
+        moe_permute_fusion: false
+
         # Recompute
         recompute_granularity: full
         recompute_method: uniform
