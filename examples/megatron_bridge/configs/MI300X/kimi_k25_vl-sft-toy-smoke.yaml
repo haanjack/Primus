@@ -68,6 +68,7 @@ modules:
         finetune: false
         save_interval: 10000
         async_save: false
+        async_strategy: mcore
 
       # ===== Dataset sub-config (cfg.dataset.*) =====
       dataset:
