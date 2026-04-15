@@ -34,6 +34,8 @@ def patch_validate_args(ctx: PatchContext):
     import megatron.training.arguments as megatron_args
     import megatron.training.initialize as megatron_init
 
+    import torch
+
     from primus.modules.trainer.megatron.utils import validate_args_on_rocm
 
     megatron_args._primus_original_validate_args = megatron_args.validate_args
@@ -41,7 +43,13 @@ def patch_validate_args(ctx: PatchContext):
     def patched_validate_args(*args, **kwargs):
         megatron_args._primus_original_validate_args(*args, **kwargs)
         validated_args = args[0] if args else kwargs.get("args", None)
-        validate_args_on_rocm(validated_args)
+        _target = getattr(validated_args, "target_gpu", "auto")
+        if _target == "auto":
+            _target = "amd" if getattr(torch.version, "hip", None) else "cuda"
+        if _target == "amd":
+            validate_args_on_rocm(validated_args)
+        else:
+            log_rank_0("[Patch:megatron.validate_args] CUDA target, skipping ROCm-specific validation")
         return validated_args
 
     megatron_args.validate_args = patched_validate_args

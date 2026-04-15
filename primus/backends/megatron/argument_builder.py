@@ -108,6 +108,11 @@ class MegatronArgBuilder:
             if key in megatron_keys:
                 self.overrides[key] = value
 
+        # Force primus_turbo settings to False when target_gpu is cuda
+        # (Primus-Turbo is AMD-only; CUDA does not support these features)
+        if self.overrides.get("target_gpu") == "cuda":
+            self._disable_primus_turbo_for_cuda()
+
         return self
 
     # ------------------------------------------------------------------
@@ -145,3 +150,22 @@ class MegatronArgBuilder:
     # Alias for usage style:
     # builder.finalize()
     finalize = to_namespace
+
+    # ------------------------------------------------------------------
+    # GPU-specific configuration handling
+    # ------------------------------------------------------------------
+    def _disable_primus_turbo_for_cuda(self) -> None:
+        """
+        Disable all Primus-Turbo features when running on CUDA.
+
+        Primus-Turbo optimizations are AMD-specific and not compatible with CUDA.
+        This method ensures all turbo-related flags are forced to False regardless
+        of user configuration, preventing misconfiguration and runtime errors.
+        """
+        self.overrides["enable_primus_turbo"] = False
+        self.overrides["use_turbo_attention"] = False
+        self.overrides["use_turbo_grouped_mlp"] = False
+        self.overrides["use_turbo_parallel_linear"] = False
+        self.overrides["use_turbo_deepep"] = False
+        self.overrides["use_turbo_rms_norm"] = False
+        self.overrides["use_turbo_fused_act_with_probs"] = False

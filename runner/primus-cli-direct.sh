@@ -471,8 +471,8 @@ elif [[ "$RUN_MODE" == "torchrun" ]]; then
         FILTERS+=(0)
     fi
 
-    # Add the last local rank on the last node
-    if [ "${NODE_RANK:-0}" -eq "$LAST_NODE" ] && [ "${NNODES:-1}" -ne 1 ]; then
+    # Add the last local rank on the last node (multi-node only; single-node shows all ranks)
+    if [ "${NNODES:-1}" -ne 1 ] && [ "${NODE_RANK:-0}" -eq "$LAST_NODE" ]; then
         FILTERS+=($((${GPUS_PER_NODE:-8} - 1)))
     fi
 
