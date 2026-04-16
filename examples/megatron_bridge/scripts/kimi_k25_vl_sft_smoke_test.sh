@@ -9,7 +9,7 @@
 # Phase B: Runs 5 training iterations, verifies no crash and finite loss
 #
 # Usage:
-#   bash examples/megatron_bridge/scripts/kimi_k25_vl_sft_toy_smoke.sh
+#   bash examples/megatron_bridge/scripts/kimi_k25_vl_sft_smoke_test.sh
 #
 # Prerequisites:
 #   - data/kimi_k25_vl_toy/ must exist (toy HF model)
@@ -21,7 +21,7 @@ set -e
 
 # ===== Configuration =====
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-rocm/primus:v26.2}"
-CONFIG_FILE="${CONFIG_FILE:-examples/megatron_bridge/configs/MI300X/kimi_k25_vl-sft-toy-smoke.yaml}"
+CONFIG_FILE="${CONFIG_FILE:-examples/megatron_bridge/configs/MI300X/kimi_k25_vl-sft-smoke-test.yaml}"
 WORKSPACE="${WORKSPACE:-.}"
 
 # Data paths (must be absolute for Docker bind mounts)
@@ -63,11 +63,29 @@ echo ""
 
 cd "$WORKSPACE"
 
+# Resolve BACKEND_PATH: if third_party/Megatron-Bridge is a symlink pointing outside
+# the workspace (e.g. Primus-sub symlinks into Primus/third_party), resolve the real
+# path so Docker can mount it. Symlinks don't cross bind-mount boundaries.
+BACKEND_PATH="${BACKEND_PATH:-$(realpath "third_party/Megatron-Bridge" 2>/dev/null || true)}"
+
+# Derive THIRD_PARTY_PATH (parent of Megatron-Bridge) to mount all submodules.
+# This gives the container access to Megatron-LM, Emerging-Optimizers, etc.
+THIRD_PARTY_PATH="${THIRD_PARTY_PATH:-$(dirname "$BACKEND_PATH")}"
+
+# Build PYTHONPATH with Megatron-Bridge/src and Megatron-LM for megatron.core import.
+_MB_SRC="${BACKEND_PATH}/src"
+_MEGATRON_LM="${THIRD_PARTY_PATH}/Megatron-LM"
+PYTHONPATH="${_MB_SRC}:${_MEGATRON_LM}${PYTHONPATH:+:${PYTHONPATH}}"
+
 ./primus-cli container \
     --image "$CONTAINER_IMAGE" \
     --env DATA_PATH="$DATA_PATH" \
     --env GPUS_PER_NODE="$GPUS_PER_NODE" \
     --env HIP_VISIBLE_DEVICES="$HIP_VISIBLE_DEVICES" \
+    --env BACKEND_PATH="$BACKEND_PATH" \
+    --env PYTHONPATH="$PYTHONPATH" \
+    --volume "${THIRD_PARTY_PATH}:${THIRD_PARTY_PATH}" \
+    --volume "${DATA_PATH}:${DATA_PATH}" \
     ${HF_HOME:+--env HF_HOME="$HF_HOME"} \
     ${WANDB_API_KEY:+--env WANDB_API_KEY="$WANDB_API_KEY"} \
     -- train posttrain --config "$CONFIG_FILE"

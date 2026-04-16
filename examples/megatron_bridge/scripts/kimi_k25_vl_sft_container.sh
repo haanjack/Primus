@@ -17,7 +17,7 @@ set -e
 CONTAINER_IMAGE="${CONTAINER_IMAGE:-rocm/primus:v26.2}"
 
 # Config file (use test variant for development)
-CONFIG_FILE="${CONFIG_FILE:-examples/megatron_bridge/configs/MI355X/kimi_k25_vl-sft-test.yaml}"
+CONFIG_FILE="${CONFIG_FILE:-examples/megatron_bridge/configs/MI300X/kimi_k25_vl-sft-test.yaml}"
 
 # Workspace directory
 WORKSPACE="${WORKSPACE:-.}"

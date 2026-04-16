@@ -49,7 +49,10 @@ if post_trainer is None or not hasattr(post_trainer, 'params'):
 
 params = post_trainer.params
 
+# Check both flat (params.pretrained_checkpoint) and nested (params.checkpoint.pretrained_checkpoint)
 ckpt = getattr(params, 'pretrained_checkpoint', 'unset')
+if ckpt == 'unset' and hasattr(params, 'checkpoint'):
+    ckpt = getattr(params.checkpoint, 'pretrained_checkpoint', 'unset')
 ckpt_status = 'null' if ckpt is None else str(ckpt)
 print(f'CKPT_STATUS={ckpt_status}')
 
@@ -119,9 +122,15 @@ if [[ "$NODE_RANK" == "0" ]]; then
     # Set up Python path for Megatron-Bridge
     export PYTHONPATH="${PRIMUS_ROOT}/third_party/Megatron-Bridge/src:${PRIMUS_ROOT}/third_party/Megatron-Bridge/3rdparty/Megatron-LM:${PYTHONPATH:-}"
 
-    python3 third_party/Megatron-Bridge/examples/conversion/convert_checkpoints.py import \
+    # Use memory-efficient conversion script with malloc_trim patch.
+    # The standard convert_checkpoints.py OOM-kills on 1T+ models because glibc
+    # keeps freed tensor pages in its malloc heap instead of returning them to the OS.
+    CONVERT_SCRIPT="${PRIMUS_ROOT}/runner/helpers/hooks/train/posttrain/megatron_bridge/lib/convert_hf_to_megatron.py"
+
+    python3 "${CONVERT_SCRIPT}" \
       --hf-model "${HF_PATH}" \
-      --megatron-path "${MEGATRON_PATH}"
+      --megatron-path "${MEGATRON_PATH}" \
+      --trust-remote-code
 
     # Create done file and remove lock
     touch "$DONE_FILE"
@@ -134,16 +143,10 @@ else
     LOG_INFO_RANK0 "[RANK ${NODE_RANK}] Waiting for rank 0 to complete checkpoint conversion..."
 
     # Wait for done file (with timeout)
-    timeout=600  # 10 minutes timeout
+    timeout=1800  # 30 minutes timeout (1T model conversion can take 10-20 min)
     elapsed=0
     while [[ ! -f "$DONE_FILE" ]] && [[ $elapsed -lt $timeout ]]; do
-        if [[ ! -f "$LOCK_FILE" ]] && [[ ! -f "$DONE_FILE" ]]; then
-            # Lock file doesn't exist and done file doesn't exist - rank 0 hasn't started yet
-            sleep 2
-        else
-            # Lock file exists - conversion in progress
-            sleep 5
-        fi
+        sleep 5
         elapsed=$((elapsed + 5))
     done
 
