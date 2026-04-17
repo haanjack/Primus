@@ -170,13 +170,34 @@ def _merge_dict_to_dataclass(target: Any, source_dict: dict, path: str = "") -> 
         if is_dataclass(target_value) and isinstance(source_value, dict):
             _merge_dict_to_dataclass(target_value, source_value, current_path)
             log_rank_0(f"  ↳ Merged {current_path} (recursive)")
+        elif target_value is None and isinstance(source_value, dict):
+            # Target is None (uninitialized Optional) and source is a dict —
+            # check if the field's type annotation is a dataclass, and if so
+            # instantiate it and merge recursively instead of assigning a raw dict.
+            field_type = field.type
+            # Unwrap Optional[X] → X
+            origin = getattr(field_type, "__origin__", None)
+            if origin is type(None):
+                field_type = None
+            elif origin is not None:
+                args = getattr(field_type, "__args__", ())
+                for a in args:
+                    if a is not type(None) and is_dataclass(a):
+                        field_type = a
+                        break
+            if field_type is not None and is_dataclass(field_type):
+                instance = field_type()
+                _merge_dict_to_dataclass(instance, source_value, current_path)
+                setattr(target, field_name, instance)
+                log_rank_0(f"  ↳ Instantiated + merged {current_path} (was None)")
+            else:
+                setattr(target, field_name, source_value)
+                log_rank_0(f"  ↳ Set {current_path} = {source_value}")
         else:
             # For non-dataclass fields, check type compatibility before assignment
-            # Get expected type from target field
             target_type = type(target_value)
             source_type = type(source_value)
 
-            # Allow assignment if types match, source is a subtype, or target is None (uninitialized Optional)
             if target_value is None or source_type == target_type or isinstance(source_value, target_type):
                 setattr(target, field_name, source_value)
                 log_rank_0(f"  ↳ Set {current_path} = {source_value}")
