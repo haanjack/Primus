@@ -155,8 +155,12 @@ def _merge_dict_to_dataclass(target: Any, source_dict: dict, path: str = "") -> 
 
         source_value = source_dict[field_name]
 
-        # Skip None values
+        # Apply None overrides explicitly — the source dict was user-authored, so
+        # an explicit null key means "clear this field", not "I have no opinion".
         if source_value is None:
+            current_path = f"{path}.{field_name}" if path else field_name
+            setattr(target, field_name, None)
+            log_rank_0(f"  ↳ Set {current_path} = None (explicit override)")
             continue
 
         current_path = f"{path}.{field_name}" if path else field_name
@@ -166,15 +170,35 @@ def _merge_dict_to_dataclass(target: Any, source_dict: dict, path: str = "") -> 
         if is_dataclass(target_value) and isinstance(source_value, dict):
             _merge_dict_to_dataclass(target_value, source_value, current_path)
             log_rank_0(f"  ↳ Merged {current_path} (recursive)")
+        elif target_value is None and isinstance(source_value, dict):
+            # Target is None (uninitialized Optional) and source is a dict —
+            # check if the field's type annotation is a dataclass, and if so
+            # instantiate it and merge recursively instead of assigning a raw dict.
+            field_type = field.type
+            # Unwrap Optional[X] → X
+            origin = getattr(field_type, "__origin__", None)
+            if origin is type(None):
+                field_type = None
+            elif origin is not None:
+                args = getattr(field_type, "__args__", ())
+                for a in args:
+                    if a is not type(None) and is_dataclass(a):
+                        field_type = a
+                        break
+            if field_type is not None and is_dataclass(field_type):
+                instance = field_type()
+                _merge_dict_to_dataclass(instance, source_value, current_path)
+                setattr(target, field_name, instance)
+                log_rank_0(f"  ↳ Instantiated + merged {current_path} (was None)")
+            else:
+                setattr(target, field_name, source_value)
+                log_rank_0(f"  ↳ Set {current_path} = {source_value}")
         else:
             # For non-dataclass fields, check type compatibility before assignment
-            # Get expected type from target field
             target_type = type(target_value)
             source_type = type(source_value)
 
-            # Allow assignment if types match or target is None (uninitialized)
-            # if target_value is None or source_type == target_type or isinstance(source_value, target_type):
-            if source_type == target_type or isinstance(source_value, target_type):
+            if target_value is None or source_type == target_type or isinstance(source_value, target_type):
                 setattr(target, field_name, source_value)
                 log_rank_0(f"  ↳ Set {current_path} = {source_value}")
             else:
@@ -212,6 +236,22 @@ def load_recipe_config(backend_args: SimpleNamespace) -> Any:
 
     # Convert backend_args to dict once (used for both recipe call and config override)
     backend_dict = namespace_to_dict(backend_args)
+
+    # Strip Primus-internal keys that are never valid recipe function parameters.
+    # Without this, auto_filter_and_call retries once per invalid key, producing
+    # noisy warning logs for every config load.
+    _PRIMUS_INTERNAL_KEYS = {
+        "trainable",
+        "sink_level",
+        "file_sink_level",
+        "stderr_sink_level",
+        "stage",
+        "enable_primus_turbo",
+        "use_turbo_attention",
+        "use_turbo_parallel_linear",
+    }
+    for key in _PRIMUS_INTERNAL_KEYS:
+        backend_dict.pop(key, None)
 
     # Call recipe function with filtered dict
     config_container = auto_filter_and_call(recipe_func, backend_dict)

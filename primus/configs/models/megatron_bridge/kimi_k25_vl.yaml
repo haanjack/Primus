@@ -1,0 +1,6 @@
+recipe: kimi_vl.kimi_k25_vl
+flavor: kimi_k25_vl_sft_config
+hf_path: moonshotai/Kimi-K2.5
+
+dataset:
+    dataset_name: "rajpurkar/squad"  # Default dataset; will be overridden in experiment config
