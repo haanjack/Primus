@@ -1,6 +1,6 @@
 work_group: ${PRIMUS_TEAM:amd}
 user_name: ${PRIMUS_USER:root}
-exp_name: ${PRIMUS_EXP_NAME:kimi_k25_vl_sft_test}
+exp_name: ${PRIMUS_EXP_NAME:kimi_k25_vl_hf2megatron_test_mi300x}
 workspace: ${PRIMUS_WORKSPACE:./output}
 
 modules:

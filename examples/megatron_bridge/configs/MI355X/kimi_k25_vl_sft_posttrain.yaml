@@ -1,6 +1,6 @@
 work_group: ${PRIMUS_TEAM:amd}
 user_name: ${PRIMUS_USER:root}
-exp_name: ${PRIMUS_EXP_NAME:kimi_k25_vl_sft_test_mi300x}
+exp_name: ${PRIMUS_EXP_NAME:kimi_k25_vl_sft_mi355x}
 workspace: ${PRIMUS_WORKSPACE:./output}
 
 modules:
@@ -17,19 +17,26 @@ modules:
       hf_path: moonshotai/Kimi-K2.5
 
       # ===== Checkpoint Loading =====
+      # Will be auto-set by pre-training hook from HF checkpoint
       pretrained_checkpoint: null
 
       # ===== Model sub-config (cfg.model.*) =====
       model:
-        # Parallelism: minimal for quick testing on 1 node (no TP, PP, EP)
-        tensor_model_parallel_size: 1
-        pipeline_model_parallel_size: 1
+        # Parallelism: Full Model (1024 GPUs = TP=2 x PP=16 x EP=32)
+        tensor_model_parallel_size: 2
+        pipeline_model_parallel_size: 16
+        pipeline_dtype: bfloat16
         virtual_pipeline_model_parallel_size: null
-        pipeline_model_parallel_layout: null
         context_parallel_size: 1
-        sequence_parallel: false
-        expert_model_parallel_size: 1
+        sequence_parallel: true
+        expert_model_parallel_size: 32
         expert_tensor_parallel_size: 1
+
+        # MoE Token Dispatcher (alltoall for multi-GPU EP)
+        moe_token_dispatcher_type: alltoall
+        moe_flex_dispatcher_backend: deepep
+        moe_enable_deepep: true
+        moe_shared_expert_overlap: true
 
         # MoE Kernel Optimizations
         moe_router_fusion: false
@@ -46,7 +53,7 @@ modules:
         # CUDA Graph
         cuda_graph_impl: "none"
         cuda_graph_scope: "full"
-        cuda_graph_warmup_steps: 1
+        cuda_graph_warmup_steps: 3
 
         # Recompute
         recompute_granularity: full
@@ -59,8 +66,8 @@ modules:
 
       # ===== Training sub-config (cfg.train.*) =====
       train:
-        train_iters: 500
-        global_batch_size: 8
+        train_iters: 150000
+        global_batch_size: 4096
         micro_batch_size: 1
         manual_gc: true
         manual_gc_interval: 5
@@ -70,7 +77,9 @@ modules:
       checkpoint:
         pretrained_checkpoint: null
         finetune: true
-        save_interval: 200
+        no_load_optim: true
+        load_strict: false
+        save_interval: 2000
         async_save: false
 
       # ===== Dataset sub-config (cfg.dataset.*) =====
@@ -83,12 +92,12 @@ modules:
       # ===== Validation sub-config (cfg.validation.*) =====
       validation:
         eval_iters: 0
-        eval_interval: 100
+        eval_interval: 2000
 
       # ===== Scheduler sub-config (cfg.scheduler.*) =====
       scheduler:
-        lr_warmup_iters: 200
-        lr_decay_iters: null
+        lr_warmup_iters: 2000
+        lr_decay_iters: 150000
 
       # ===== DDP sub-config (cfg.ddp.*) =====
       ddp:
