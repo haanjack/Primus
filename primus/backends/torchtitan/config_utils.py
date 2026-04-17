@@ -16,6 +16,7 @@ configuration representations used in TorchTitan integration:
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 from types import SimpleNamespace
 from typing import Any
