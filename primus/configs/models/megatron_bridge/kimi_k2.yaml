@@ -1,0 +1,3 @@
+recipe: kimi.kimi_k2
+flavor: kimi_k2_finetune_config
+hf_path: moonshotai/Kimi-K2

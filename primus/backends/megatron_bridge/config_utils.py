@@ -217,21 +217,29 @@ def load_recipe_config(backend_args: SimpleNamespace) -> Any:
     assert recipe, "Recipe must be specified for Megatron-Bridge backend"
     assert flavor, "Flavor must be specified for Megatron-Bridge backend"
 
-    # Construct full module path and function name
-    full_module_path = f"megatron.bridge.recipes.{recipe}"
+    # Construct candidate module paths — Primus-owned recipes take priority
+    primus_module_path = f"primus.recipes.megatron_bridge.{recipe}"
+    mb_module_path = f"megatron.bridge.recipes.{recipe}"
     function_name = flavor
 
-    log_rank_0(f"Loading recipe: {full_module_path}.{function_name}()")
+    # Try Primus-owned recipe first, fall back to Megatron-Bridge
+    module = None
+    for module_path in (primus_module_path, mb_module_path):
+        try:
+            module = importlib.import_module(module_path)
+            log_rank_0(f"Loading recipe: {module_path}.{function_name}()")
+            break
+        except ImportError:
+            continue
 
-    # Import module and get function
-    try:
-        module = importlib.import_module(full_module_path)
-    except ImportError as e:
-        assert False, f"Recipe loading failed: Cannot import '{full_module_path}': {e}"
+    assert module is not None, (
+        f"Recipe loading failed: '{recipe}' not found in "
+        f"'{primus_module_path}' or '{mb_module_path}'"
+    )
 
     assert hasattr(
         module, function_name
-    ), f"Recipe loading failed: Function '{function_name}' not found in '{full_module_path}'"
+    ), f"Recipe loading failed: Function '{function_name}' not found in '{module_path}'"
     recipe_func = getattr(module, function_name)
 
     # Convert backend_args to dict once (used for both recipe call and config override)
@@ -255,14 +263,14 @@ def load_recipe_config(backend_args: SimpleNamespace) -> Any:
 
     # Call recipe function with filtered dict
     config_container = auto_filter_and_call(recipe_func, backend_dict)
-    log_rank_0(f"Successfully loaded recipe: {full_module_path}.{function_name}()")
+    log_rank_0(f"Successfully loaded recipe: {module_path}.{function_name}()")
     # log_dict_aligned("[debug]ConfigContainer", config_container.to_dict())
 
     # Validate return type
     from megatron.bridge.training.config import ConfigContainer
 
     assert isinstance(config_container, ConfigContainer), (
-        f"Recipe function '{full_module_path}.{function_name}()' must return "
+        f"Recipe function '{module_path}.{function_name}()' must return "
         f"ConfigContainer, but returned {type(config_container).__name__}"
     )
 

@@ -26,7 +26,7 @@ pip install --cache-dir="${PIP_CACHE_DIR}" -U "datasets>=4.0.0" || { echo "[ERRO
 
 pip install --cache-dir="${PIP_CACHE_DIR}" -r "${SCRIPT_DIR}/requirements-megatron-bridge.txt"
 
-# Install emerging-optimizers (Muon optimizer, required by kimi_k25_vl recipe)
+# Install emerging-optimizers (Muon optimizer, required by kimi_k2 recipe)
 if [ -d "${PRIMUS_ROOT}/third_party/Emerging-Optimizers" ]; then
     pip install --cache-dir="${PIP_CACHE_DIR}" -e "${PRIMUS_ROOT}/third_party/Emerging-Optimizers" || \
       echo "[WARNING] Could not install emerging-optimizers from submodule"

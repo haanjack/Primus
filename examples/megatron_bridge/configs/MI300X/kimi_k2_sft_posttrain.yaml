@@ -1,6 +1,6 @@
 work_group: ${PRIMUS_TEAM:amd}
 user_name: ${PRIMUS_USER:root}
-exp_name: ${PRIMUS_EXP_NAME:kimi_k25_vl_sft_mi300x}
+exp_name: ${PRIMUS_EXP_NAME:kimi_k2_sft_posttrain_mi300x}
 workspace: ${PRIMUS_WORKSPACE:./output}
 
 modules:
@@ -8,17 +8,17 @@ modules:
     framework: megatron_bridge
     config: sft_trainer.yaml
 
-    model: kimi_k25_vl.yaml
+    model: kimi_k2.yaml
 
     overrides:
       stderr_sink_level: DEBUG
 
-      # ===== Recipe function parameters (passed via auto_filter_and_call) =====
-      hf_path: moonshotai/Kimi-K2.5
-
       # ===== Checkpoint Loading =====
-      # Will be auto-set by pre-training hook from HF checkpoint
+      # Will be auto-set by pre-training hook after HF → Megatron conversion
       pretrained_checkpoint: null
+
+      # Fine-tuning method: full SFT (all weights updated)
+      peft: "none"
 
       # ===== Model sub-config (cfg.model.*) =====
       model:
@@ -32,11 +32,10 @@ modules:
         expert_model_parallel_size: 32
         expert_tensor_parallel_size: 1
 
-        # MoE Token Dispatcher (alltoall for multi-GPU EP)
+        # MoE Token Dispatcher
         moe_token_dispatcher_type: alltoall
-        moe_flex_dispatcher_backend: deepep
         moe_enable_deepep: true
-        moe_shared_expert_overlap: true
+        moe_shared_expert_overlap: false
 
         # MoE Kernel Optimizations
         moe_router_fusion: false
@@ -47,7 +46,6 @@ modules:
 
         # Transformer Engine & Attention
         transformer_impl: "transformer_engine"
-        use_flash_attn: true
         attention_backend: null
 
         # CUDA Graph
@@ -73,12 +71,14 @@ modules:
         manual_gc_interval: 5
         manual_gc_eval: 5
 
+      # ===== Optimizer sub-config =====
+      finetune_lr: 5.0e-6
+      min_lr: 0.0
+
       # ===== Checkpoint sub-config (cfg.checkpoint.*) =====
       checkpoint:
         pretrained_checkpoint: null
         finetune: true
-        no_load_optim: true
-        load_strict: false
         save_interval: 2000
         async_save: false
 
@@ -86,8 +86,6 @@ modules:
       dataset:
         seq_length: 4096
         num_workers: 8
-        pack_sequences_in_batch: false
-        trust_remote_code: true
 
       # ===== Validation sub-config (cfg.validation.*) =====
       validation:
@@ -99,6 +97,11 @@ modules:
         lr_warmup_iters: 2000
         lr_decay_iters: 150000
 
+      # ===== W&B logging =====
+      wandb_project: null
+      wandb_entity: null
+      wandb_exp_name: null
+
       # ===== DDP sub-config (cfg.ddp.*) =====
       ddp:
         use_distributed_optimizer: false
@@ -106,7 +109,6 @@ modules:
         overlap_grad_reduce: true
         check_for_nan_in_grad: true
         average_in_collective: true
-        data_parallel_sharding_strategy: "no_shard"
         use_megatron_fsdp: false
 
       # ===== Communication Overlap sub-config (cfg.comm_overlap.*) =====

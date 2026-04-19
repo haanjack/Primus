@@ -1,6 +1,6 @@
 work_group: ${PRIMUS_TEAM:amd}
 user_name: ${PRIMUS_USER:root}
-exp_name: ${PRIMUS_EXP_NAME:kimi_k25_vl_hf2megatron_test_mi355x}
+exp_name: ${PRIMUS_EXP_NAME:kimi_k2_hf2megatron_convert_test_mi355x}
 workspace: ${PRIMUS_WORKSPACE:./output}
 
 modules:
@@ -8,20 +8,17 @@ modules:
     framework: megatron_bridge
     config: sft_trainer.yaml
 
-    model: kimi_k25_vl.yaml
+    model: kimi_k2.yaml
 
     overrides:
       stderr_sink_level: DEBUG
-
-      # ===== Recipe function parameters (passed via auto_filter_and_call) =====
-      hf_path: moonshotai/Kimi-K2.5
 
       # ===== Checkpoint Loading =====
       pretrained_checkpoint: null
 
       # ===== Model sub-config (cfg.model.*) =====
       model:
-        # Parallelism: minimal for quick testing on 1 node (no TP, PP, EP)
+        # Parallelism: minimal for quick testing on 1 node (TP=1, PP=1, EP=1)
         tensor_model_parallel_size: 1
         pipeline_model_parallel_size: 1
         virtual_pipeline_model_parallel_size: null
@@ -40,7 +37,6 @@ modules:
 
         # Transformer Engine & Attention
         transformer_impl: "transformer_engine"
-        use_flash_attn: true
         attention_backend: null
 
         # CUDA Graph
@@ -77,8 +73,6 @@ modules:
       dataset:
         seq_length: 4096
         num_workers: 8
-        pack_sequences_in_batch: false
-        trust_remote_code: true
 
       # ===== Validation sub-config (cfg.validation.*) =====
       validation:
@@ -97,7 +91,6 @@ modules:
         overlap_grad_reduce: true
         check_for_nan_in_grad: true
         average_in_collective: true
-        data_parallel_sharding_strategy: "no_shard"
         use_megatron_fsdp: false
 
       # ===== Communication Overlap sub-config (cfg.comm_overlap.*) =====
