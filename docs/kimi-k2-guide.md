@@ -13,7 +13,10 @@ This guide covers post-training (SFT and LoRA fine-tuning) of **Kimi-K2** (1T Mo
 - [Post-Training](#post-training)
   - [SFT (Full Fine-Tuning)](#sft-full-fine-tuning)
   - [LoRA](#lora)
-- [Checkpoint Conversion Test](#checkpoint-conversion-test)
+- [Checkpoint Conversion](#checkpoint-conversion)
+  - [Automated conversion via hook](#automated-conversion-via-hook-recommended)
+  - [Standalone conversion](#standalone-conversion-no-training)
+  - [Checkpoint Conversion Test](#checkpoint-conversion-test)
 - [Running Modes](#running-modes)
   - [Container Mode](#container-mode)
   - [Slurm Mode](#slurm-mode)
@@ -209,14 +212,63 @@ Key LoRA settings (`kimi_k2_lora_posttrain.yaml`):
 
 ---
 
-## Checkpoint Conversion Test
+## Checkpoint Conversion
 
-Before running full-scale SFT or LoRA, validate that the HF → Megatron checkpoint conversion was successful with a short single-node training run (500 iterations). This confirms that the converted checkpoint loads correctly and training is numerically stable.
+Before running SFT or LoRA with real weights, convert the HuggingFace checkpoint to Megatron format. Primus ships a memory-efficient conversion script at `runner/helpers/hooks/train/posttrain/megatron_bridge/lib/convert_hf_to_megatron.py` with the following optimizations for 1T-parameter models:
+
+- **`malloc_trim` after every `gc.collect`**: Forces glibc to return freed pages to the OS during the clone-and-free save phase, preventing OOM that kills the process around the 50% mark on large models.
+- **HF model freed after weight copy**: After `bridge.to_megatron_model()` copies all weights, the HF model tensors are deleted and `malloc_trim` is called, releasing ~half the working RAM before the Megatron save begins.
+- **Patches for Kimi-K2 quirks**: Skips shared-expert validation when `n_shared_experts=0` (avoids division-by-zero), forces `HAVE_NVRX=False` to bypass the incompatible `nvidia_resiliency_ext` in the container.
+
+### Automated conversion via hook (recommended)
+
+Set `hf_path` in the conversion test config. The `01_convert_checkpoints.sh` hook runs automatically before training and:
+1. Downloads the HF model (if not already cached under `$HF_HOME/hub/`)
+2. Converts to Megatron format (rank 0 only; other ranks wait on a lock file)
+3. Injects the converted path as `pretrained_checkpoint` for the training run
+
+```bash
+DATA_PATH=/path/to/data \
+./primus-cli container --image rocm/primus:v26.2 \
+  --volume /path/to/Primus:/workspace/Primus \
+  -- train posttrain \
+  --config examples/megatron_bridge/configs/MI300X/kimi_k2_hf2megatron_convert_test.yaml
+```
+
+The config has `hf_path: moonshotai/Kimi-K2-Base` pre-set. The converted checkpoint lands at `$DATA_PATH/megatron_checkpoints/Kimi-K2-Base/`.
+
+### Standalone conversion (no training)
+
+Run the conversion script directly inside the container when you only want the checkpoint without running a training step:
+
+```bash
+docker run --rm \
+  --device=/dev/kfd --device=/dev/dri \
+  --group-add video \
+  --security-opt seccomp=unconfined \
+  --ipc=host \
+  -e HF_HOME=/path/to/hf_cache \
+  -e PYTHONPATH=/workspace/Primus/third_party/Megatron-Bridge/src:/workspace/Primus/third_party/Megatron-Bridge/3rdparty/Megatron-LM \
+  -v /path/to/Primus:/workspace/Primus \
+  -v /path/to/output:/output \
+  rocm/primus:v26.2 \
+  python3 /workspace/Primus/runner/helpers/hooks/train/posttrain/megatron_bridge/lib/convert_hf_to_megatron.py \
+    --hf-model moonshotai/Kimi-K2-Base \
+    --megatron-path /output/megatron_checkpoints/Kimi-K2-Base \
+    --trust-remote-code
+```
+
+> **Note — RAM requirements**: Converting a 1T bf16 model requires approximately **2×model_size** of RAM peak (for the HF + Megatron copies). Kimi-K2-Base at bf16 is ~2TB; plan for a host with at least 3–4TB of available RAM. The `malloc_trim` patches significantly reduce peak usage compared to the stock conversion path but cannot eliminate the fundamental requirement.
+
+### Checkpoint Conversion Test
+
+After conversion, validate the checkpoint loads correctly and training is numerically stable with a 500-iteration single-node run:
 
 **Container mode — MI300X:**
 ```bash
 DATA_PATH=/path/to/data \
 ./primus-cli container --image rocm/primus:v26.2 \
+  --volume /path/to/Primus:/workspace/Primus \
   -- train posttrain \
   --config examples/megatron_bridge/configs/MI300X/kimi_k2_hf2megatron_convert_test.yaml
 ```
@@ -225,6 +277,7 @@ DATA_PATH=/path/to/data \
 ```bash
 DATA_PATH=/path/to/data \
 ./primus-cli container --image rocm/primus:v26.2 \
+  --volume /path/to/Primus:/workspace/Primus \
   -- train posttrain \
   --config examples/megatron_bridge/configs/MI355X/kimi_k2_hf2megatron_convert_test.yaml
 ```
@@ -246,16 +299,11 @@ DATA_PATH=/path/to/data \
 ```
 
 Key conversion test settings (`kimi_k2_hf2megatron_convert_test.yaml`):
-- `train_iters: 500` — long enough to catch instability
-- `TP=1, PP=1, EP=1` — single node, no parallelism overhead
+- `hf_path: moonshotai/Kimi-K2-Base` — triggers auto-download + conversion via hook
+- `train_iters: 500` — long enough to catch numerical instability
+- `EP=8, num_layers=2` — single-node constraints (384 experts across 8 GPUs, reduced layers to fit HBM)
 - `checkpoint.finetune: true` — loads weights only, skips optimizer state
-- `pretrained_checkpoint: null` — set this to your converted checkpoint path
-
-To point to a converted checkpoint, edit the YAML or set the path inline:
-```bash
-# Override pretrained_checkpoint inline via YAML edit, or use PRIMUS_EXP_NAME
-# to track experiment names across runs.
-```
+- `checkpoint.save: null` — set to a path when you want to keep intermediate checkpoints
 
 ---
 
@@ -308,27 +356,27 @@ Runs training directly on the host or inside an existing container. Requires ROC
 
 ### MI300X
 
-| Config File | Method | TP | PP | EP | GBS | MBS | Seq | Iters |
-|-------------|--------|----|----|-----|-----|-----|-----|-------|
-| `kimi_k2_sft_posttrain.yaml` | SFT | 2 | 16 | 32 | 4096 | 1 | 4096 | 150K |
-| `kimi_k2_lora_posttrain.yaml` | LoRA | 1 | 16 | 32 | 256 | 1 | 4096 | 150K |
-| `kimi_k2_hf2megatron_convert_test.yaml` | SFT | 1 | 1 | 1 | 8 | 1 | 4096 | 500 |
-| `kimi_k2_sft_smoke_test.yaml` | SFT | 1 | 1 | 1 | 8 | 1 | 1024 | 5 |
+| Config File | Method | TP | PP | EP | Layers | GBS | MBS | Seq | Iters |
+|-------------|--------|----|----|-----|--------|-----|-----|-----|-------|
+| `kimi_k2_sft_posttrain.yaml` | SFT | 2 | 16 | 32 | 61 | 4096 | 1 | 4096 | 150K |
+| `kimi_k2_lora_posttrain.yaml` | LoRA | 1 | 16 | 32 | 61 | 256 | 1 | 4096 | 150K |
+| `kimi_k2_hf2megatron_convert_test.yaml` | SFT | 1 | 1 | 8 | 2 | 8 | 1 | 4096 | 500 |
+| `kimi_k2_sft_smoke_test.yaml` | SFT | 1 | 1 | 8 | 2 | 8 | 1 | 1024 | 5 |
 
 All configs under `examples/megatron_bridge/configs/MI300X/`.
 
 ### MI355X
 
-| Config File | Method | TP | PP | EP | GBS | MBS | Seq | Iters |
-|-------------|--------|----|----|-----|-----|-----|-----|-------|
-| `kimi_k2_sft_posttrain.yaml` | SFT | 2 | 16 | 32 | 4096 | 1 | 4096 | 150K |
-| `kimi_k2_lora_posttrain.yaml` | LoRA | 1 | 16 | 32 | 256 | 1 | 4096 | 150K |
-| `kimi_k2_hf2megatron_convert_test.yaml` | SFT | 1 | 1 | 1 | 8 | 1 | 4096 | 500 |
-| `kimi_k2_sft_smoke_test.yaml` | SFT | 1 | 1 | 1 | 8 | 1 | 1024 | 5 |
+| Config File | Method | TP | PP | EP | Layers | GBS | MBS | Seq | Iters |
+|-------------|--------|----|----|-----|--------|-----|-----|-----|-------|
+| `kimi_k2_sft_posttrain.yaml` | SFT | 2 | 16 | 32 | 61 | 4096 | 1 | 4096 | 150K |
+| `kimi_k2_lora_posttrain.yaml` | LoRA | 1 | 16 | 32 | 61 | 256 | 1 | 4096 | 150K |
+| `kimi_k2_hf2megatron_convert_test.yaml` | SFT | 1 | 1 | 8 | 2 | 8 | 1 | 4096 | 500 |
+| `kimi_k2_sft_smoke_test.yaml` | SFT | 1 | 1 | 8 | 2 | 8 | 1 | 1024 | 5 |
 
 All configs under `examples/megatron_bridge/configs/MI355X/`.
 
-**Legend:** TP = Tensor Parallelism, PP = Pipeline Parallelism, EP = Expert Parallelism, GBS = Global Batch Size, MBS = Micro Batch Size, Seq = Sequence Length
+**Legend:** TP = Tensor Parallelism, PP = Pipeline Parallelism, EP = Expert Parallelism, Layers = `num_layers` (reduced for single-node tests), GBS = Global Batch Size, MBS = Micro Batch Size, Seq = Sequence Length
 
 ---
 
@@ -403,21 +451,28 @@ wandb_exp_name: kimi-k2-sft-run1
    ```
 4. Reduce `seq_length` (4096 → 2048)
 
-### Smoke Test: `allgather` vs `alltoall` dispatcher
+### MoE dispatcher: `allgather` vs `alltoall`
 
-EP=1 (single node) requires `allgather` dispatcher. Multi-node EP≥2 uses `alltoall`+deepep:
+EP determines the dispatcher type:
 
 ```yaml
-# Single node (smoke/conversion test)
+# EP=1 (all experts on one GPU — not used in practice)
 model:
   moe_token_dispatcher_type: allgather
   moe_enable_deepep: false
 
-# Multi-node production
+# EP>1, single node (smoke test, conversion test: EP=8)
+model:
+  moe_token_dispatcher_type: alltoall
+  moe_enable_deepep: false   # deepep disabled on single node
+
+# EP>1, multi-node production (EP=32)
 model:
   moe_token_dispatcher_type: alltoall
   moe_enable_deepep: true
 ```
+
+The smoke test and conversion test use EP=8 + `alltoall` + `deepep: false`. Production SFT/LoRA use EP=32 + `alltoall` + `deepep: true`.
 
 ### `KeyError` in `CudaGraphScope` enum
 
