@@ -235,7 +235,7 @@ DATA_PATH=/path/to/data \
   --config examples/megatron_bridge/configs/MI300X/kimi_k2_hf2megatron_convert_test.yaml
 ```
 
-The config has `hf_path: moonshotai/Kimi-K2-Base` pre-set. The converted checkpoint lands at `$DATA_PATH/megatron_checkpoints/Kimi-K2-Base/`.
+The config has `hf_path: moonshotai/Kimi-K2-Instruct` pre-set. The converted checkpoint lands at `$DATA_PATH/megatron_checkpoints/Kimi-K2-Base/`.
 
 ### Standalone conversion (no training)
 
@@ -253,7 +253,7 @@ docker run --rm \
   -v /path/to/output:/output \
   rocm/primus:v26.2 \
   python3 /workspace/Primus/runner/helpers/hooks/train/posttrain/megatron_bridge/lib/convert_hf_to_megatron.py \
-    --hf-model moonshotai/Kimi-K2-Base \
+    --hf-model moonshotai/Kimi-K2-Instruct \
     --megatron-path /output/megatron_checkpoints/Kimi-K2-Base \
     --trust-remote-code
 ```
@@ -299,7 +299,7 @@ DATA_PATH=/path/to/data \
 ```
 
 Key conversion test settings (`kimi_k2_hf2megatron_convert_test.yaml`):
-- `hf_path: moonshotai/Kimi-K2-Base` — triggers auto-download + conversion via hook
+- `hf_path: moonshotai/Kimi-K2-Instruct` — triggers auto-download + conversion via hook
 - `train_iters: 500` — long enough to catch numerical instability
 - `EP=8, num_layers=2` — single-node constraints (384 experts across 8 GPUs, reduced layers to fit HBM)
 - `checkpoint.finetune: true` — loads weights only, skips optimizer state

@@ -15,7 +15,7 @@ modules:
 
       # ===== Checkpoint Loading =====
       # Will be auto-set by pre-training hook after HF → Megatron conversion
-      pretrained_checkpoint: null
+      #pretrained_checkpoint: null
 
       # Fine-tuning method: LoRA (parameter-efficient, adapters only)
       peft: lora
@@ -78,7 +78,7 @@ modules:
 
       # ===== Checkpoint sub-config (cfg.checkpoint.*) =====
       checkpoint:
-        pretrained_checkpoint: null
+        #pretrained_checkpoint: null
         finetune: true
         save_interval: 2000
         async_save: false

@@ -14,8 +14,9 @@ modules:
       stderr_sink_level: DEBUG
 
       # ===== Checkpoint Loading =====
-      # Will be auto-set by pre-training hook after HF → Megatron conversion
-      pretrained_checkpoint: null
+      # Set to your converted Megatron checkpoint path before running.
+      # Example: pretrained_checkpoint: /path/to/megatron_checkpoints/Kimi-K2-Instruct
+      #pretrained_checkpoint: null
 
       # Fine-tuning method: full SFT (all weights updated)
       peft: "none"
@@ -77,7 +78,7 @@ modules:
 
       # ===== Checkpoint sub-config (cfg.checkpoint.*) =====
       checkpoint:
-        pretrained_checkpoint: null
+        #pretrained_checkpoint: null
         finetune: true
         save_interval: 2000
         async_save: false
