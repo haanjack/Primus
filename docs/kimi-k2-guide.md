@@ -63,8 +63,7 @@ The smoke test runs 5 iterations from random initialization on a single node (no
 ```bash
 DATA_PATH=/path/to/data \
 ./primus-cli container --image rocm/primus:v26.2 \
-  --volume /path/to/Primus-sub:/workspace/Primus \
-  --volume /path/to/Primus/third_party:/path/to/Primus/third_party \
+  --volume /path/to/Primus:/workspace/Primus \
   -- train posttrain \
   --config examples/megatron_bridge/configs/MI300X/kimi_k2_sft_smoke_test.yaml
 ```
@@ -73,23 +72,18 @@ DATA_PATH=/path/to/data \
 ```bash
 DATA_PATH=/path/to/data \
 ./primus-cli container --image rocm/primus:v26.2 \
-  --volume /path/to/Primus-sub:/workspace/Primus \
-  --volume /path/to/Primus/third_party:/path/to/Primus/third_party \
+  --volume /path/to/Primus:/workspace/Primus \
   -- train posttrain \
   --config examples/megatron_bridge/configs/MI355X/kimi_k2_sft_smoke_test.yaml
 ```
 
 Expected: 5 iterations complete with finite loss, exit code 0.
 
-> **Note — required volume mounts**:
-> - `--volume .../Primus-sub:/workspace/Primus`: The container loads Primus
->   Python source from `/workspace/Primus`. Mounting the working Primus-sub
->   directory here ensures the container uses the current code (including any
->   custom recipes under `primus/recipes/`).
-> - `--volume .../third_party:.../third_party`: Required when the Primus repo's
->   `third_party/` is a symlink to an external path (common in shared cluster
->   setups). Primus resolves Megatron-Bridge and other backends through this
->   path at runtime. Omit if `third_party/` is a real directory inside the repo.
+> **Note — required volume mount**:
+> `--volume /path/to/Primus:/workspace/Primus`: The container loads Primus
+> Python source from `/workspace/Primus`. Mounting the Primus checkout here
+> ensures the container uses the current code (including custom recipes under
+> `primus/recipes/`, `third_party/` backends, and any config changes).
 
 Key smoke test settings (`kimi_k2_sft_smoke_test.yaml`):
 - `train_iters: 5`, `global_batch_size: 8`, `seq_length: 1024`
@@ -274,13 +268,11 @@ Recommended for environment isolation. The container loads Primus from `/workspa
 ```bash
 DATA_PATH=/path/to/data \
 ./primus-cli container --image rocm/primus:v26.2 \
-  --volume /path/to/Primus-sub:/workspace/Primus \
-  --volume /path/to/Primus/third_party:/path/to/Primus/third_party \
+  --volume /path/to/Primus:/workspace/Primus \
   -- train posttrain --config <config>.yaml
 ```
 
-- `--volume .../Primus-sub:/workspace/Primus`: replaces the container's bundled Primus source with your working copy.
-- `--volume .../third_party:.../third_party`: required when the repo's `third_party/` is a symlink to an external path. Omit if `third_party/` is a real directory.
+- `--volume /path/to/Primus:/workspace/Primus`: replaces the container's bundled Primus source with your working copy, including `primus/`, `third_party/`, and all config files.
 - Add `--volume /path/to/data:/path/to/data` if your data directory is outside the repo root.
 
 ### Slurm Mode
