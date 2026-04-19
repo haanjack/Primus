@@ -18,12 +18,14 @@ modules:
       # it to Megatron format before training starts. Conversion uses the
       # memory-efficient convert_hf_to_megatron.py script (malloc_trim after
       # every gc.collect, HF model freed from memory after weight copy).
-      hf_path: moonshotai/Kimi-K2-Base
+      hf_path: moonshotai/Kimi-K2-Instruct
 
       # ===== Checkpoint Loading =====
-      # pretrained_checkpoint is set automatically by the hook after conversion.
-      # Leave as null here; the hook injects the converted path at runtime.
-      pretrained_checkpoint: null
+      # The 01_convert_checkpoints.sh hook downloads hf_path and converts it to
+      # Megatron format at $DATA_PATH/megatron_checkpoints/Kimi-K2-Instruct.
+      # Set pretrained_checkpoint to the expected output path so the hook
+      # triggers conversion rather than skipping (null = random init, skip).
+      pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/mnt/vm-storage/megatron_checkpoints/Kimi-K2-Instruct}
 
       # ===== Model sub-config (cfg.model.*) =====
       model:
@@ -78,7 +80,7 @@ modules:
 
       # ===== Checkpoint sub-config (cfg.checkpoint.*) =====
       checkpoint:
-        pretrained_checkpoint: null
+        pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/mnt/vm-storage/megatron_checkpoints/Kimi-K2-Instruct}
         finetune: true
         save_interval: 200
         async_save: false
