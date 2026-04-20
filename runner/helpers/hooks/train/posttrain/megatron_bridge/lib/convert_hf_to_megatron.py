@@ -237,6 +237,7 @@ def main():
         hf_tokenizer_path=args.hf_model,
         hf_tokenizer_kwargs=hf_tokenizer_kwargs,
         low_memory_save=True,
+        async_save=False,
     )
     log_mem("after save_megatron_model")
 
