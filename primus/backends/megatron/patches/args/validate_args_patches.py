@@ -33,7 +33,6 @@ def patch_validate_args(ctx: PatchContext):
     ``_primus_original_validate_args`` with a source-modified version."""
     import megatron.training.arguments as megatron_args
     import megatron.training.initialize as megatron_init
-
     import torch
 
     from primus.modules.trainer.megatron.utils import validate_args_on_rocm

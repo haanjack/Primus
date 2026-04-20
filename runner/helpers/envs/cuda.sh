@@ -12,7 +12,8 @@
 # =============================================================================
 
 # Use CUDA device numbering; clear AMD counterpart
-export CUDA_VISIBLE_DEVICES=$(seq -s, 0 $((GPUS_PER_NODE - 1)))
+CUDA_VISIBLE_DEVICES=$(seq -s, 0 $((GPUS_PER_NODE - 1)))
+export CUDA_VISIBLE_DEVICES
 unset HIP_VISIBLE_DEVICES
 
 # Unset AMD/ROCm-specific variables that are not applicable on NVIDIA

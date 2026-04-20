@@ -18,6 +18,7 @@ Also patches:
 - CheckpointConfig: set async_strategy='mcore' to avoid nvidia_resiliency_ext
   import failure (the container has an incompatible version)
 """
+
 import argparse
 import ctypes
 import gc
@@ -37,12 +38,11 @@ def malloc_trim():
 def log_mem(tag: str) -> None:
     try:
         with open("/proc/meminfo") as f:
-            info = {k.strip(): v.strip() for k, v in
-                    (line.split(":", 1) for line in f if ":" in line)}
-        total      = int(info["MemTotal"].split()[0])    // 1024
-        avail      = int(info["MemAvailable"].split()[0]) // 1024
-        swap_total = int(info["SwapTotal"].split()[0])   // 1024
-        swap_free  = int(info["SwapFree"].split()[0])    // 1024
+            info = {k.strip(): v.strip() for k, v in (line.split(":", 1) for line in f if ":" in line)}
+        total = int(info["MemTotal"].split()[0]) // 1024
+        avail = int(info["MemAvailable"].split()[0]) // 1024
+        swap_total = int(info["SwapTotal"].split()[0]) // 1024
+        swap_free = int(info["SwapFree"].split()[0]) // 1024
         ts = time.strftime("%H:%M:%S")
         print(
             f"[mem {ts}] {tag}: "
@@ -68,8 +68,8 @@ def patch_moe_shared_expert_validation():
         orig_post_init = TransformerConfig.__post_init__
 
         def patched_post_init(self):
-            moe_shared = getattr(self, 'moe_shared_expert_intermediate_size', None)
-            n_shared = getattr(self, 'num_moe_shared_experts', None) or getattr(self, 'n_shared_experts', 0)
+            moe_shared = getattr(self, "moe_shared_expert_intermediate_size", None)
+            n_shared = getattr(self, "num_moe_shared_experts", None) or getattr(self, "n_shared_experts", 0)
 
             if n_shared == 0 and moe_shared is not None:
                 self._orig_moe_shared = moe_shared
@@ -78,12 +78,15 @@ def patch_moe_shared_expert_validation():
                     orig_post_init(self)
                 finally:
                     self.moe_shared_expert_intermediate_size = self._orig_moe_shared
-                    delattr(self, '_orig_moe_shared')
+                    delattr(self, "_orig_moe_shared")
             else:
                 orig_post_init(self)
 
         TransformerConfig.__post_init__ = patched_post_init
-        print("[convert] Patched TransformerConfig: skip MoE shared expert validation when n_shared_experts=0", flush=True)
+        print(
+            "[convert] Patched TransformerConfig: skip MoE shared expert validation when n_shared_experts=0",
+            flush=True,
+        )
     except Exception as e:
         print(f"[convert] Could not patch TransformerConfig (continuing anyway): {e}", flush=True)
 
@@ -98,28 +101,28 @@ def patch_checkpoint_generation():
 
         orig_generate_model = ckpt._generate_model_state_dict
 
-        def patched_generate_model(model, prefix='', keep_vars=False, **kwargs):
-            if hasattr(model, 'config'):
+        def patched_generate_model(model, prefix="", keep_vars=False, **kwargs):
+            if hasattr(model, "config"):
                 cfg = model.config
-                tc = getattr(cfg, 'text_config', cfg)
-                n_shared = getattr(tc, 'n_shared_experts', 0) or getattr(tc, 'num_moe_shared_experts', 0)
+                tc = getattr(cfg, "text_config", cfg)
+                n_shared = getattr(tc, "n_shared_experts", 0) or getattr(tc, "num_moe_shared_experts", 0)
 
                 if n_shared == 0:
-                    if hasattr(tc, 'n_shared_experts'):
+                    if hasattr(tc, "n_shared_experts"):
                         tc._orig_n_shared = tc.n_shared_experts
                         tc.n_shared_experts = 1
-                    if hasattr(tc, 'num_moe_shared_experts'):
+                    if hasattr(tc, "num_moe_shared_experts"):
                         tc._orig_num_shared = tc.num_moe_shared_experts
                         tc.num_moe_shared_experts = 1
                     try:
                         return orig_generate_model(model, prefix, keep_vars, **kwargs)
                     finally:
-                        if hasattr(tc, '_orig_n_shared'):
+                        if hasattr(tc, "_orig_n_shared"):
                             tc.n_shared_experts = tc._orig_n_shared
-                            delattr(tc, '_orig_n_shared')
-                        if hasattr(tc, '_orig_num_shared'):
+                            delattr(tc, "_orig_n_shared")
+                        if hasattr(tc, "_orig_num_shared"):
                             tc.num_moe_shared_experts = tc._orig_num_shared
-                            delattr(tc, '_orig_num_shared')
+                            delattr(tc, "_orig_num_shared")
 
             return orig_generate_model(model, prefix, keep_vars, **kwargs)
 
@@ -180,6 +183,7 @@ def patch_async_strategy():
     """
     try:
         import megatron.core.dist_checkpointing.strategies.torch as torch_strat
+
         torch_strat.HAVE_NVRX = False
         print("[convert] Patched torch strategy: HAVE_NVRX=False (force mcore async path)", flush=True)
     except Exception as e:

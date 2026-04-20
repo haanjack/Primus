@@ -53,9 +53,7 @@ def build_job_config_from_namespace(ns: SimpleNamespace) -> Any:
     if importlib.util.find_spec("primus_turbo") is None:
         converters = cfg_dict.get("model", {}).get("converters", [])
         if "primus_turbo" in converters:
-            cfg_dict.setdefault("model", {})["converters"] = [
-                c for c in converters if c != "primus_turbo"
-            ]
+            cfg_dict.setdefault("model", {})["converters"] = [c for c in converters if c != "primus_turbo"]
 
     # Step 2: Extract and preserve Primus-specific configuration
     primus_config = cfg_dict.pop("primus", None)
