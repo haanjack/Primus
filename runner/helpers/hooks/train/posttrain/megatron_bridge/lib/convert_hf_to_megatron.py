@@ -186,17 +186,17 @@ def patch_async_strategy():
         print(f"[convert] Could not patch HAVE_NVRX (continuing anyway): {e}", flush=True)
 
     try:
-        from megatron.core.dist_checkpointing.strategies import filesystem_async as fa
-        orig_init = fa.FileSystemWriterAsync.__init__
+        from megatron.core.dist_checkpointing.strategies.torch import TorchDistSaveShardedStrategy
+        orig_init = TorchDistSaveShardedStrategy.__init__
 
         def patched_init(self, *args, **kwargs):
-            kwargs['num_io_threads'] = 0
+            kwargs['thread_count'] = 1
             orig_init(self, *args, **kwargs)
 
-        fa.FileSystemWriterAsync.__init__ = patched_init
-        print("[convert] Patched FileSystemWriterAsync: num_io_threads=0 (synchronous writes)", flush=True)
+        TorchDistSaveShardedStrategy.__init__ = patched_init
+        print("[convert] Patched TorchDistSaveShardedStrategy: thread_count=1 (single-threaded writes)", flush=True)
     except Exception as e:
-        print(f"[convert] Could not patch FileSystemWriterAsync (continuing anyway): {e}", flush=True)
+        print(f"[convert] Could not patch TorchDistSaveShardedStrategy (continuing anyway): {e}", flush=True)
 
 
 def main():
