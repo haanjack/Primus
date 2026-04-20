@@ -1,0 +1,116 @@
+work_group: ${PRIMUS_TEAM:amd}
+user_name: ${PRIMUS_USER:root}
+exp_name: ${PRIMUS_EXP_NAME:kimi_k2_hf2megatron_convert_test_mi300x}
+workspace: ${PRIMUS_WORKSPACE:./output}
+
+modules:
+  post_trainer:
+    framework: megatron_bridge
+    config: sft_trainer.yaml
+
+    model: kimi_k2.yaml
+
+    overrides:
+      stderr_sink_level: DEBUG
+
+      # ===== HF Model (used by 01_convert_checkpoints.sh hook) =====
+      # The pre-training hook downloads this model from HuggingFace and converts
+      # it to Megatron format before training starts. Conversion uses the
+      # memory-efficient convert_hf_to_megatron.py script (malloc_trim after
+      # every gc.collect, HF model freed from memory after weight copy).
+      hf_path: moonshotai/Kimi-K2-Instruct
+
+      # ===== Checkpoint Loading =====
+      # The 01_convert_checkpoints.sh hook downloads hf_path and converts it to
+      # Megatron format at $DATA_PATH/megatron_checkpoints/Kimi-K2-Instruct.
+      # Set pretrained_checkpoint to the expected output path so the hook
+      # triggers conversion rather than skipping (null = random init, skip).
+      pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/data2/users/megatron_checkpoints/Kimi-K2-Instruct}
+
+      # ===== Model sub-config (cfg.model.*) =====
+      model:
+        # Parallelism: EP=8 to distribute 384 experts across 8 GPUs on 1 node.
+        # Reduce num_layers to 2 (from 61) so the model fits in 8×192GB.
+        # moe_layer_freq must match num_layers exactly.
+        # Production scale requires 1024+ GPUs (TP=2, PP=16, EP=32).
+        tensor_model_parallel_size: 1
+        pipeline_model_parallel_size: 1
+        virtual_pipeline_model_parallel_size: null
+        pipeline_model_parallel_layout: null
+        context_parallel_size: 1
+        sequence_parallel: false
+        expert_model_parallel_size: 8
+        expert_tensor_parallel_size: 1
+
+        # Reduce num_layers for single-node test; moe_layer_freq must match
+        num_layers: 2
+        moe_layer_freq: [ 0, 1 ]
+
+        # MoE Dispatcher: EP>1 requires alltoall
+        moe_token_dispatcher_type: alltoall
+        moe_enable_deepep: false
+        moe_shared_expert_overlap: false
+
+        # Disable TE triton-based MoE permutation (get_int_dtype Triton JIT error)
+        moe_permute_fusion: false
+
+        # No activation offloading needed with reduced layers
+        fine_grained_activation_offloading: false
+        offload_modules: null
+
+        # Disable CUDA graph for single-node test
+        # cuda_graph_scope must be null (not "") to avoid KeyError in CudaGraphScope enum
+        cuda_graph_impl: "none"
+        cuda_graph_scope: null
+        cuda_graph_warmup_steps: 0
+
+        # Recompute
+        recompute_granularity: full
+        recompute_method: uniform
+        recompute_num_layers: 1
+
+      # ===== Training sub-config (cfg.train.*) =====
+      train:
+        train_iters: 500
+        global_batch_size: 8
+        micro_batch_size: 1
+        manual_gc: true
+        manual_gc_interval: 5
+        manual_gc_eval: 5
+
+      # ===== Checkpoint sub-config (cfg.checkpoint.*) =====
+      checkpoint:
+        pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/data2/users/megatron_checkpoints/Kimi-K2-Instruct}
+        finetune: true
+        save_interval: 200
+        async_save: false
+
+      # ===== Dataset sub-config (cfg.dataset.*) =====
+      dataset:
+        seq_length: 4096
+        num_workers: 8
+
+      # ===== Validation sub-config (cfg.validation.*) =====
+      validation:
+        eval_iters: 0
+        eval_interval: 100
+
+      # ===== Scheduler sub-config (cfg.scheduler.*) =====
+      scheduler:
+        lr_warmup_iters: 200
+        lr_decay_iters: null
+
+      # ===== DDP sub-config (cfg.ddp.*) =====
+      ddp:
+        use_distributed_optimizer: false
+        overlap_param_gather: false
+        overlap_grad_reduce: true
+        check_for_nan_in_grad: true
+        average_in_collective: true
+        use_megatron_fsdp: false
+
+      # ===== Communication Overlap sub-config (cfg.comm_overlap.*) =====
+      comm_overlap:
+        tp_comm_overlap: false
+        delay_wgrad_compute: false
+        overlap_moe_expert_parallel_comm: false

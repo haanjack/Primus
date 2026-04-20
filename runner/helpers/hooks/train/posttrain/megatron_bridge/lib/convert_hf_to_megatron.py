@@ -166,17 +166,17 @@ def patch_low_memory_save():
 
 def patch_async_strategy():
     """
-    Force HAVE_NVRX=False in the torch dist checkpoint strategy module.
+    Force HAVE_NVRX=False and single-threaded synchronous writes.
 
-    The container has nvidia_resiliency_ext installed but with an incompatible
-    API: `_get_write_results_queue` (with underscore) instead of
-    `get_write_results_queue`. The module-level import at line 55 succeeds
-    (HAVE_NVRX=True), but the deeper import in get_async_strategy() fails.
+    1. HAVE_NVRX=False: the container has nvidia_resiliency_ext installed but
+       with an incompatible API. Setting False forces the mcore async path.
 
-    TorchDistSaveShardedStrategy.save() hardcodes
-    `strategy = "nvrx" if HAVE_NVRX else "mcore"` (line 648), ignoring the
-    config's async_strategy entirely. Setting HAVE_NVRX=False forces it to
-    use the mcore async path which works without nvidia_resiliency_ext.
+    2. num_io_threads=0 on FileSystemWriterAsync: with ~2TB model in memory and
+       only ~300GB RAM headroom, worker threads writing tensor data OOM and die
+       mid-write, corrupting the checkpoint file (enforce fail at
+       inline_container.cc:668: unexpected pos). Forcing 0 io threads makes
+       all writes happen synchronously in the main process where memory usage
+       is already bounded by the low_memory_save clone loop.
     """
     try:
         import megatron.core.dist_checkpointing.strategies.torch as torch_strat
@@ -184,6 +184,19 @@ def patch_async_strategy():
         print("[convert] Patched torch strategy: HAVE_NVRX=False (force mcore async path)", flush=True)
     except Exception as e:
         print(f"[convert] Could not patch HAVE_NVRX (continuing anyway): {e}", flush=True)
+
+    try:
+        from megatron.core.dist_checkpointing.strategies.torch import TorchDistSaveShardedStrategy
+        orig_init = TorchDistSaveShardedStrategy.__init__
+
+        def patched_init(self, *args, **kwargs):
+            kwargs['thread_count'] = 1
+            orig_init(self, *args, **kwargs)
+
+        TorchDistSaveShardedStrategy.__init__ = patched_init
+        print("[convert] Patched TorchDistSaveShardedStrategy: thread_count=1 (single-threaded writes)", flush=True)
+    except Exception as e:
+        print(f"[convert] Could not patch TorchDistSaveShardedStrategy (continuing anyway): {e}", flush=True)
 
 
 def main():

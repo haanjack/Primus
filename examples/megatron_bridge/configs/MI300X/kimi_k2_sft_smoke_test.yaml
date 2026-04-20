@@ -1,6 +1,6 @@
 work_group: ${PRIMUS_TEAM:amd}
 user_name: ${PRIMUS_USER:root}
-exp_name: ${PRIMUS_EXP_NAME:kimi_k25_vl_sft_smoke_test_mi355x}
+exp_name: ${PRIMUS_EXP_NAME:kimi_k2_sft_smoke_test_mi300x}
 workspace: ${PRIMUS_WORKSPACE:./output}
 
 modules:
@@ -8,40 +8,45 @@ modules:
     framework: megatron_bridge
     config: sft_trainer.yaml
 
-    model: kimi_k25_vl.yaml
+    model: kimi_k2.yaml
 
     overrides:
       stderr_sink_level: DEBUG
 
-      # ===== Recipe function parameters (passed via auto_filter_and_call) =====
-      # hf_path: passed to kimi_k25_vl_sft_config(hf_path=...) to use toy model
-      hf_path: ${DATA_PATH:./data}/kimi_k25_vl_toy
-
       # ===== Checkpoint Loading =====
-      # null = random init; also kept top-level so 01_convert_checkpoints.sh hook can read it
+      # null = random init; hook skips conversion when pretrained_checkpoint=null
       pretrained_checkpoint: null
 
       # ===== Model sub-config (cfg.model.*) =====
       model:
-        # Parallelism: minimal for 4-GPU smoke test (recipe defaults: TP=2, PP=16, EP=32)
+        # Parallelism: EP=8 to distribute 384 experts across 8 GPUs
+        # Reduce num_layers to 2 (from 61) so the model fits in 8×192GB for smoke test
+        # Production scale requires 1024+ GPUs (TP=2, PP=16, EP=32)
         tensor_model_parallel_size: 1
         pipeline_model_parallel_size: 1
         virtual_pipeline_model_parallel_size: null
         pipeline_model_parallel_layout: null
         context_parallel_size: 1
         sequence_parallel: false
-        expert_model_parallel_size: 1
+        expert_model_parallel_size: 8
         expert_tensor_parallel_size: 1
 
-        # MoE Dispatcher: EP=1 requires allgather, not alltoall/deepep
-        moe_token_dispatcher_type: allgather
-        moe_flex_dispatcher_backend: allgather
+        # Reduce num_layers for smoke test to fit in GPU memory
+        # moe_layer_freq must match num_layers (HF config has 61-entry list)
+        num_layers: 2
+        moe_layer_freq: [0, 1]
+
+        # MoE Dispatcher: EP>1 requires alltoall
+        moe_token_dispatcher_type: alltoall
         moe_enable_deepep: false
-        # shared expert overlap requires alltoall; disable for EP=1 allgather
         moe_shared_expert_overlap: false
 
         # Disable TE triton-based MoE permutation (get_int_dtype Triton JIT error)
         moe_permute_fusion: false
+
+        # No activation offloading needed with reduced layers
+        fine_grained_activation_offloading: false
+        offload_modules: null
 
         # Recompute
         recompute_granularity: full
@@ -57,7 +62,7 @@ modules:
       # ===== Training sub-config (cfg.train.*) =====
       train:
         train_iters: 5
-        global_batch_size: 4
+        global_batch_size: 8
         micro_batch_size: 1
         manual_gc: true
         manual_gc_interval: 5
@@ -66,7 +71,7 @@ modules:
       checkpoint:
         pretrained_checkpoint: null
         finetune: false
-        # Disable checkpoint saving entirely for smoke test
+        # Disable checkpoint saving for smoke test
         # (avoids nvidia_resiliency_ext version mismatch in the container)
         save: null
         save_interval: 10000
@@ -75,8 +80,6 @@ modules:
       dataset:
         seq_length: 1024
         num_workers: 2
-        pack_sequences_in_batch: false
-        trust_remote_code: true
 
       # ===== Validation sub-config (cfg.validation.*) =====
       validation:

@@ -1,6 +1,6 @@
 work_group: ${PRIMUS_TEAM:amd}
 user_name: ${PRIMUS_USER:root}
-exp_name: ${PRIMUS_EXP_NAME:kimi_k25_vl_hf2megatron_test_mi300x}
+exp_name: ${PRIMUS_EXP_NAME:kimi_k2_lora_posttrain_mi300x}
 workspace: ${PRIMUS_WORKSPACE:./output}
 
 modules:
@@ -8,28 +8,35 @@ modules:
     framework: megatron_bridge
     config: sft_trainer.yaml
 
-    model: kimi_k25_vl.yaml
+    model: kimi_k2.yaml
 
     overrides:
       stderr_sink_level: DEBUG
 
-      # ===== Recipe function parameters (passed via auto_filter_and_call) =====
-      hf_path: moonshotai/Kimi-K2.5
-
       # ===== Checkpoint Loading =====
-      pretrained_checkpoint: null
+      # Will be auto-set by pre-training hook after HF → Megatron conversion
+      #pretrained_checkpoint: null
+
+      # Fine-tuning method: LoRA (parameter-efficient, adapters only)
+      peft: lora
 
       # ===== Model sub-config (cfg.model.*) =====
       model:
-        # Parallelism: minimal for quick testing on 1 node (no TP, PP, EP)
+        # Parallelism: LoRA needs less activation memory — reduce TP
+        # Full scale: 1024 GPUs = TP=1 x PP=16 x EP=32
         tensor_model_parallel_size: 1
-        pipeline_model_parallel_size: 1
+        pipeline_model_parallel_size: 16
+        pipeline_dtype: bfloat16
         virtual_pipeline_model_parallel_size: null
-        pipeline_model_parallel_layout: null
         context_parallel_size: 1
         sequence_parallel: false
-        expert_model_parallel_size: 1
+        expert_model_parallel_size: 32
         expert_tensor_parallel_size: 1
+
+        # MoE Token Dispatcher
+        moe_token_dispatcher_type: alltoall
+        moe_enable_deepep: true
+        moe_shared_expert_overlap: false
 
         # MoE Kernel Optimizations
         moe_router_fusion: false
@@ -40,13 +47,12 @@ modules:
 
         # Transformer Engine & Attention
         transformer_impl: "transformer_engine"
-        use_flash_attn: true
         attention_backend: null
 
         # CUDA Graph
         cuda_graph_impl: "none"
         cuda_graph_scope: "full"
-        cuda_graph_warmup_steps: 1
+        cuda_graph_warmup_steps: 3
 
         # Recompute
         recompute_granularity: full
@@ -59,36 +65,43 @@ modules:
 
       # ===== Training sub-config (cfg.train.*) =====
       train:
-        train_iters: 500
-        global_batch_size: 8
+        train_iters: 150000
+        global_batch_size: 256
         micro_batch_size: 1
         manual_gc: true
         manual_gc_interval: 5
         manual_gc_eval: 5
 
+      # ===== Optimizer sub-config =====
+      finetune_lr: 1.0e-4
+      min_lr: 0.0
+
       # ===== Checkpoint sub-config (cfg.checkpoint.*) =====
       checkpoint:
-        pretrained_checkpoint: null
+        #pretrained_checkpoint: null
         finetune: true
-        save_interval: 200
+        save_interval: 2000
         async_save: false
 
       # ===== Dataset sub-config (cfg.dataset.*) =====
       dataset:
         seq_length: 4096
         num_workers: 8
-        pack_sequences_in_batch: false
-        trust_remote_code: true
 
       # ===== Validation sub-config (cfg.validation.*) =====
       validation:
         eval_iters: 0
-        eval_interval: 100
+        eval_interval: 2000
 
       # ===== Scheduler sub-config (cfg.scheduler.*) =====
       scheduler:
-        lr_warmup_iters: 200
-        lr_decay_iters: null
+        lr_warmup_iters: 2000
+        lr_decay_iters: 150000
+
+      # ===== W&B logging =====
+      wandb_project: null
+      wandb_entity: null
+      wandb_exp_name: null
 
       # ===== DDP sub-config (cfg.ddp.*) =====
       ddp:
@@ -97,7 +110,6 @@ modules:
         overlap_grad_reduce: true
         check_for_nan_in_grad: true
         average_in_collective: true
-        data_parallel_sharding_strategy: "no_shard"
         use_megatron_fsdp: false
 
       # ===== Communication Overlap sub-config (cfg.comm_overlap.*) =====

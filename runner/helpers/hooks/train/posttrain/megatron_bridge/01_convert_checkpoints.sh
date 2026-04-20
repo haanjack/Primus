@@ -143,15 +143,17 @@ else
     LOG_INFO_RANK0 "[RANK ${NODE_RANK}] Waiting for rank 0 to complete checkpoint conversion..."
 
     # Wait for done file (with timeout)
-    timeout=1800  # 30 minutes timeout (1T model conversion can take 10-20 min)
+    # 1T model: ~1TB download + conversion can take 3–6 hours depending on
+    # network speed and host RAM. Use 8 hours (28800s) to be safe.
+    timeout=28800
     elapsed=0
     while [[ ! -f "$DONE_FILE" ]] && [[ $elapsed -lt $timeout ]]; do
-        sleep 5
-        elapsed=$((elapsed + 5))
+        sleep 30
+        elapsed=$((elapsed + 30))
     done
 
     if [[ ! -f "$DONE_FILE" ]]; then
-        echo "[RANK ${NODE_RANK}] Timeout waiting for checkpoint conversion"
+        echo "[RANK ${NODE_RANK}] Timeout waiting for checkpoint conversion after ${timeout}s"
         exit 1
     fi
 
