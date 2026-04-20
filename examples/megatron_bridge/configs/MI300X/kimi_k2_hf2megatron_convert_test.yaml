@@ -25,7 +25,7 @@ modules:
       # Megatron format at $DATA_PATH/megatron_checkpoints/Kimi-K2-Instruct.
       # Set pretrained_checkpoint to the expected output path so the hook
       # triggers conversion rather than skipping (null = random init, skip).
-      pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/mnt/vm-storage/megatron_checkpoints/Kimi-K2-Instruct}
+      pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/data2/users/megatron_checkpoints/Kimi-K2-Instruct}
 
       # ===== Model sub-config (cfg.model.*) =====
       model:
@@ -80,7 +80,7 @@ modules:
 
       # ===== Checkpoint sub-config (cfg.checkpoint.*) =====
       checkpoint:
-        pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/mnt/vm-storage/megatron_checkpoints/Kimi-K2-Instruct}
+        pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/data2/users/megatron_checkpoints/Kimi-K2-Instruct}
         finetune: true
         save_interval: 200
         async_save: false
