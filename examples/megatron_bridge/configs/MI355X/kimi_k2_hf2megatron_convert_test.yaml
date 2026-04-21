@@ -20,13 +20,6 @@ modules:
       # every gc.collect, HF model freed from memory after weight copy).
       hf_path: moonshotai/Kimi-K2-Instruct
 
-      # ===== Checkpoint Loading =====
-      # The 01_convert_checkpoints.sh hook downloads hf_path and converts it to
-      # Megatron format at $DATA_PATH/megatron_checkpoints/Kimi-K2-Instruct.
-      # Set pretrained_checkpoint to the expected output path so the hook
-      # triggers conversion rather than skipping (null = random init, skip).
-      pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/data2/users/megatron_checkpoints/Kimi-K2-Instruct}
-
       # ===== Model sub-config (cfg.model.*) =====
       model:
         # Parallelism: EP=8 to distribute 384 experts across 8 GPUs on 1 node.
@@ -80,7 +73,6 @@ modules:
 
       # ===== Checkpoint sub-config (cfg.checkpoint.*) =====
       checkpoint:
-        pretrained_checkpoint: ${PRETRAINED_CHECKPOINT:/data2/users/megatron_checkpoints/Kimi-K2-Instruct}
         finetune: true
         save_interval: 200
         async_save: false
