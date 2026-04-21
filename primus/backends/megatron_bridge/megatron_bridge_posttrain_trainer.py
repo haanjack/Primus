@@ -108,6 +108,7 @@ class MegatronBridgePosttrainTrainer(MegatronBridgeBaseTrainer):
 
         except Exception as e:
             import traceback
+
             log_rank_0(f"Error during post-training: {e}")
             log_rank_0(f"Full traceback:\n{traceback.format_exc()}")
             raise
