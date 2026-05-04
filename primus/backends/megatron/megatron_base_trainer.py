@@ -17,7 +17,6 @@ class MegatronBaseTrainer(BaseTrainer):
     def setup(self):
         """Setup Megatron runtime: set global vars and patch parse_args."""
         set_primus_global_variables(self.backend_args)
-        self._set_megatron_global_variables()
         self._patch_parse_args()
 
     def init(self):
@@ -60,13 +59,20 @@ class MegatronBaseTrainer(BaseTrainer):
         ``megatron.training.global_vars``.  Primus bypasses that path by
         calling ``pretrain()`` directly, so we replicate the same
         initialization here.
+
+        ``validate_args`` mutates its argument (e.g. ``del args.batch_size``),
+        so we pass a shallow copy to avoid corrupting ``self.backend_args``
+        before ``pretrain()`` calls ``validate_args`` a second time.
         """
+        import copy
+
         from megatron.training.arguments import validate_args  # type: ignore
         from megatron.training.global_vars import set_global_variables  # type: ignore
 
         log_rank_0("Validating Megatron args and setting global variables")
-        validate_args(self.backend_args)
-        set_global_variables(self.backend_args)
+        args_copy = copy.copy(self.backend_args)
+        validate_args(args_copy)
+        set_global_variables(args_copy)
 
     def _patch_parse_args(self):
         """Patch Megatron's parse_args to return pre-configured Primus arguments."""

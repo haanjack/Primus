@@ -115,6 +115,7 @@ def _make_ctx():
 def _make_args(**overrides):
     """Build a minimal args namespace that satisfies both validate_args and validate_args_on_rocm."""
     defaults = dict(
+        target_gpu="amd",
         deterministic_mode=False,
         fp8=False,
         fp4=False,
