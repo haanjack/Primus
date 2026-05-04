@@ -17,6 +17,7 @@ class MegatronBaseTrainer(BaseTrainer):
     def setup(self):
         """Setup Megatron runtime: set global vars and patch parse_args."""
         set_primus_global_variables(self.backend_args)
+        self._set_megatron_global_variables()
         self._patch_parse_args()
 
     def init(self):
