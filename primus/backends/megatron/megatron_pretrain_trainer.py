@@ -76,13 +76,32 @@ class MegatronPretrainTrainer(MegatronBaseTrainer):
             model_provider = get_model_provider()
         log_rank_0(f"-model_provider: {model_provider}")
 
-        wrapped_pretrain(
+        # Build PretrainConfigContainer when the new Megatron API requires it
+        # (cfg_container is the first positional arg since ~25.04).
+        pretrain_args = (
             train_valid_test_datasets_provider,
             model_provider,
             ModelType.encoder_or_decoder,
             forward_step,
-            **kwargs,
         )
+        if "cfg_container" in sig.parameters:
+            from megatron.training.argument_utils import (  # type: ignore
+                pretrain_cfg_container_from_args,
+            )
+            from megatron.training.arguments import validate_args  # type: ignore
+
+            # validate_args converts string dtype values (e.g. "fp32") to
+            # torch.dtype objects in-place.  pretrain_cfg_container_from_args
+            # reads these converted values to build OptimizerConfig, so the
+            # conversion must happen on self.backend_args (not the copy used
+            # during setup).
+            validate_args(self.backend_args)
+
+            cfg_container = pretrain_cfg_container_from_args(self.backend_args)
+            pretrain_args = (cfg_container,) + pretrain_args
+            log_rank_0("Built PretrainConfigContainer for updated Megatron-LM API")
+
+        wrapped_pretrain(*pretrain_args, **kwargs)
 
         # Dump PP visualization data if enabled
         try:

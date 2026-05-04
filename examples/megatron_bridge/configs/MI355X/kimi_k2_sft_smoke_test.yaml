@@ -80,6 +80,7 @@ modules:
       dataset:
         seq_length: 1024
         num_workers: 2
+        mock: true
 
       # ===== Validation sub-config (cfg.validation.*) =====
       validation:

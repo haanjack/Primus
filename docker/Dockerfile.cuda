@@ -10,19 +10,9 @@ COPY third_party/torchtitan /opt/torchtitan
 RUN pip install --no-build-isolation /opt/torchtitan && rm -rf /opt/torchtitan
 
 # Install Primus dependencies (skip AMD-only packages: pyrsmi, torchao ROCm build)
-RUN pip install \
-    loguru \
-    wandb \
-    expecttest \
-    nltk \
-    matplotlib \
-    markdown2 \
-    tyro \
-    blobfile \
-    transformers \
-    "torchdata>=0.8.0" \
-    "datasets>=3.6.0" \
-    "mlflow==3.4.0" \
-    plotext
+COPY requirements.txt /tmp/requirements.txt
+RUN grep -v -E "^(pyrsmi|torchao|weasyprint|pre-commit)" /tmp/requirements.txt \
+    | pip install -r /dev/stdin \
+    && pip install transformers
 
 WORKDIR /opt
