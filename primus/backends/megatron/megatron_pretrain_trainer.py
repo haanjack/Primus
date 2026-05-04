@@ -88,6 +88,13 @@ class MegatronPretrainTrainer(MegatronBaseTrainer):
             from megatron.training.argument_utils import (  # type: ignore
                 pretrain_cfg_container_from_args,
             )
+            from megatron.training.arguments import validate_args  # type: ignore
+
+            # validate_args converts string dtype values (e.g. "fp32") to torch.dtype
+            # objects.  pretrain_cfg_container_from_args builds OptimizerConfig directly
+            # from backend_args, so the conversion must happen before the container is
+            # built — otherwise OptimizerConfig.__post_init__ raises an AssertionError.
+            validate_args(self.backend_args)
 
             cfg_container = pretrain_cfg_container_from_args(self.backend_args)
             pretrain_args = (cfg_container,) + pretrain_args
