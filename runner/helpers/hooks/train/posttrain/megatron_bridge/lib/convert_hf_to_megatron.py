@@ -190,15 +190,21 @@ def patch_async_strategy():
         print(f"[convert] Could not patch HAVE_NVRX (continuing anyway): {e}", flush=True)
 
     try:
-        from megatron.core.dist_checkpointing.strategies.torch import TorchDistSaveShardedStrategy
+        from megatron.core.dist_checkpointing.strategies.torch import (
+            TorchDistSaveShardedStrategy,
+        )
+
         orig_init = TorchDistSaveShardedStrategy.__init__
 
         def patched_init(self, *args, **kwargs):
-            kwargs['thread_count'] = 1
+            kwargs["thread_count"] = 1
             orig_init(self, *args, **kwargs)
 
         TorchDistSaveShardedStrategy.__init__ = patched_init
-        print("[convert] Patched TorchDistSaveShardedStrategy: thread_count=1 (single-threaded writes)", flush=True)
+        print(
+            "[convert] Patched TorchDistSaveShardedStrategy: thread_count=1 (single-threaded writes)",
+            flush=True,
+        )
     except Exception as e:
         print(f"[convert] Could not patch TorchDistSaveShardedStrategy (continuing anyway): {e}", flush=True)
 

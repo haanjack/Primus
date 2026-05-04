@@ -233,8 +233,7 @@ def load_recipe_config(backend_args: SimpleNamespace) -> Any:
             continue
 
     assert module is not None, (
-        f"Recipe loading failed: '{recipe}' not found in "
-        f"'{primus_module_path}' or '{mb_module_path}'"
+        f"Recipe loading failed: '{recipe}' not found in " f"'{primus_module_path}' or '{mb_module_path}'"
     )
 
     assert hasattr(

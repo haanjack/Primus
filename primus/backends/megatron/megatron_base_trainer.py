@@ -134,7 +134,6 @@ class MegatronBaseTrainer(BaseTrainer):
                 log_rank_0("validate_args() called; non-ROCm target, skipping ROCm-specific validation")
             return validated_args
 
-
         megatron_args.parse_args = patched_parse_args
         megatron_init.parse_args = patched_parse_args
 
