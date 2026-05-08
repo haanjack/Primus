@@ -308,8 +308,14 @@ validate_positional_args \
     POSITIONAL_ARGS \
     "[container] Missing Primus commands after '--'. Usage: primus-cli container [options] -- <primus-commands>"
 
+# Skip ROCm device validation for NVIDIA GPU environments
 if [[ -n "${container_config[options.gpus]:-}" ]]; then
     LOG_INFO_RANK0 "[container] NVIDIA GPU mode (--gpus) — skipping ROCm device validation"
+elif [[ "${TARGET_GPU:-}" == "cuda" || "${TARGET_GPU:-}" == "nvidia" ]]; then
+    LOG_INFO_RANK0 "[container] NVIDIA GPU target (${TARGET_GPU}) — skipping ROCm device validation"
+    # Auto-add --gpus all for NVIDIA GPU environments
+    container_config[options.gpus]="all"
+    LOG_INFO_RANK0 "[container] Auto-adding --gpus all for NVIDIA GPU environment"
 else
     validate_device_paths \
         "${container_config[options.device]:-}" \
@@ -319,9 +325,8 @@ else
     options:
       device:
         - \"/dev/kfd\"
-        - \"/dev/dri\"
-        - \"/dev/infiniband\"" \
-        "[container] Device validation failed. Ensure ROCm drivers are installed on host. Check: ls -la /dev/kfd /dev/dri /dev/infiniband"
+        - \"/dev/dri\"" \
+        "[container] Device validation failed. Ensure ROCm drivers are installed on host. Check: ls -la /dev/kfd /dev/dri"
 fi
 
 # Validate parameter formats (if specified)
@@ -430,6 +435,13 @@ for key in "${!container_config[@]}"; do
     # Skip image (used separately) and empty array markers
     [[ "$opt_name" == "image" ]] && continue
     [[ "$opt_value" == "[]" ]] && continue
+
+    # Skip AMD-specific options for NVIDIA GPU environments
+    if [[ "${TARGET_GPU:-}" == "cuda" || "${TARGET_GPU:-}" == "nvidia" ]]; then
+        [[ "$opt_name" == "group-add" ]] && continue
+        [[ "$opt_name" == "cap-add" ]] && continue
+        [[ "$opt_name" == "device" ]] && continue
+    fi
 
     # Check if this is a cumulative option
     is_cumulative=0

@@ -444,6 +444,10 @@ primus_env_kv=()
 if [[ -n "${direct_config[env]:-}" ]]; then
     while IFS= read -r env_entry; do
         [[ -n "$env_entry" ]] || continue
+        # Skip empty array markers from YAML
+        [[ "$env_entry" == "[]" ]] && continue
+        [[ "$env_entry" == "[" ]] && continue
+        [[ "$env_entry" == "]" ]] && continue
         # Validate env format (KEY=VALUE)
         if ! [[ "$env_entry" == *=* ]]; then
             LOG_ERROR "[direct] Invalid env format: $env_entry"

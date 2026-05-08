@@ -367,8 +367,13 @@ validate_device_paths() {
     while IFS= read -r device; do
         [[ -n "$device" ]] || continue
         if [[ ! -e "$device" ]]; then
-            LOG_ERROR "$error_prefix Device does not exist on host: $device"
-            validation_failed=1
+            # InfiniBand/RDMA devices are only present on multi-node clusters
+            if [[ "$device" == *"infiniband"* ]] || [[ "$device" == *"rdma"* ]]; then
+                LOG_WARN "$error_prefix Optional device not found (skipping): $device"
+            else
+                LOG_ERROR "$error_prefix Device does not exist on host: $device"
+                validation_failed=1
+            fi
         else
             LOG_DEBUG "Device validated: $device"
         fi
