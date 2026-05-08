@@ -230,10 +230,17 @@ if [[ "$DRY_RUN_MODE" == "false" ]]; then
 fi
 
 # Validate container runtime (docker/podman)
+# IS_PODMAN tracks whether the underlying runtime is podman (even when wrapped
+# as 'docker'), so we can apply podman-specific flags like --replace later.
+IS_PODMAN=false
 if command -v docker >/dev/null 2>&1; then
     export CONTAINER_RUNTIME="docker"
+    if docker --version 2>/dev/null | grep -qi podman; then
+        IS_PODMAN=true
+    fi
 elif command -v podman >/dev/null 2>&1; then
     export CONTAINER_RUNTIME="podman"
+    IS_PODMAN=true
 else
     # Mock runtime for dry-run testing
     export CONTAINER_RUNTIME="docker"
@@ -504,11 +511,23 @@ CONTAINER_SCRIPT="\
     cd $PRIMUS_PATH && bash runner/primus-cli-direct.sh \"\$@\" 2>&1 && \
     echo [container ${NODE_RANK:-0}][INFO]: finished at \$(date +%Y.%m.%d) \$(date +%H:%M:%S)"
 
+# When running under podman with a named container, pass --replace so that a
+# stopped container with the same name from a previous run is automatically
+# removed.  Docker does not support --replace, so only add it for podman
+# (including docker-as-podman wrappers detected via IS_PODMAN).
+REPLACE_FLAG=()
+if [[ "${IS_PODMAN}" == "true" ]] && \
+   [[ -n "${container_config[options.name]:-}" ]] && \
+   [[ "${container_config[options.name]}" != "[]" ]]; then
+    REPLACE_FLAG=(--replace)
+fi
+
 # Build complete command array
 CMD=(
     "${CONTAINER_RUNTIME}"
     run
     --rm
+    "${REPLACE_FLAG[@]}"
     "${OPTION_ARGS[@]}"
     "$DOCKER_IMAGE"
     /bin/bash
