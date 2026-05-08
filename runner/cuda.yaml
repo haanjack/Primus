@@ -22,9 +22,11 @@ container:
     network: "host"
     name: "primus-training-cuda"
 
-    # NVIDIA GPU access via --gpus (replaces ROCm --device flags)
+    # NVIDIA GPU access via --gpus (replaces ROCm --device flags).
+    # /dev/kfd and /dev/dri are AMD-only and are filtered out at runtime.
+    # /dev/infiniband is inherited from .primus.yaml and kept for multi-node RDMA;
+    # it is only mounted when the device exists on the host (checked at runtime).
     gpus: "all"
-    device: []
 
     cap-add:
       - "SYS_PTRACE"

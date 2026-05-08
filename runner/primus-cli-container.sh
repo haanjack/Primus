@@ -440,7 +440,6 @@ for key in "${!container_config[@]}"; do
     if [[ "${TARGET_GPU:-}" == "cuda" || "${TARGET_GPU:-}" == "nvidia" ]]; then
         [[ "$opt_name" == "group-add" ]] && continue
         [[ "$opt_name" == "cap-add" ]] && continue
-        [[ "$opt_name" == "device" ]] && continue
     fi
 
     # Check if this is a cumulative option
@@ -458,6 +457,21 @@ for key in "${!container_config[@]}"; do
             # Cumulative: use all values
             while IFS= read -r val; do
                 [[ -n "$val" ]] || continue
+                # Special handling for --device entries:
+                #   - Skip AMD-only devices (/dev/kfd, /dev/dri) on NVIDIA targets
+                #   - Skip any device path that does not exist on the host
+                if [[ "$opt_name" == "device" ]]; then
+                    if [[ "${TARGET_GPU:-}" == "cuda" || "${TARGET_GPU:-}" == "nvidia" ]]; then
+                        if [[ "$val" == "/dev/kfd" || "$val" == "/dev/dri" ]]; then
+                            LOG_INFO_RANK0 "[container] Skipping AMD-only device for NVIDIA: $val"
+                            continue
+                        fi
+                    fi
+                    if [[ ! -e "$val" ]]; then
+                        LOG_WARN "[container] Device not found on host, skipping: $val"
+                        continue
+                    fi
+                fi
                 CONTAINER_OPTS+=("--${opt_name}" "$val")
                 LOG_INFO_RANK0 "[container] Added cumulative: --${opt_name} $val"
             done <<< "$opt_value"
@@ -473,6 +487,19 @@ for key in "${!container_config[@]}"; do
         LOG_INFO_RANK0 "[container] Added boolean flag: --${opt_name}"
     else
         # Single value option
+        # Apply same device filtering as the cumulative path
+        if [[ "$opt_name" == "device" ]]; then
+            if [[ "${TARGET_GPU:-}" == "cuda" || "${TARGET_GPU:-}" == "nvidia" ]]; then
+                if [[ "$opt_value" == "/dev/kfd" || "$opt_value" == "/dev/dri" ]]; then
+                    LOG_INFO_RANK0 "[container] Skipping AMD-only device for NVIDIA: $opt_value"
+                    continue
+                fi
+            fi
+            if [[ ! -e "$opt_value" ]]; then
+                LOG_WARN "[container] Device not found on host, skipping: $opt_value"
+                continue
+            fi
+        fi
         CONTAINER_OPTS+=("--${opt_name}" "$opt_value")
         LOG_INFO_RANK0 "[container] Added option: --${opt_name} $opt_value"
     fi
