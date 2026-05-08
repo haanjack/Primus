@@ -11,6 +11,16 @@
 # Overrides AMD/ROCm env vars set in base_env.sh.
 # =============================================================================
 
+# Auto-detect GPU count when not explicitly set (GPUS_PER_NODE still at default 8)
+if [[ "${GPUS_PER_NODE:-8}" == "8" ]] && command -v nvidia-smi &>/dev/null; then
+    _cuda_detected=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "${_cuda_detected:-0}" -gt 0 ]]; then
+        export GPUS_PER_NODE=$_cuda_detected
+        LOG_INFO_RANK0 "NVIDIA GPU auto-detected: GPUS_PER_NODE=${GPUS_PER_NODE}"
+    fi
+    unset _cuda_detected
+fi
+
 # Use CUDA device numbering; clear AMD counterpart
 CUDA_VISIBLE_DEVICES=$(seq -s, 0 $((GPUS_PER_NODE - 1)))
 export CUDA_VISIBLE_DEVICES

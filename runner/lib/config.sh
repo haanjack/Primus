@@ -408,6 +408,88 @@ print_config_section() {
 export -f print_config_section
 
 # ---------------------------------------------------------------------------
+# Resolve target_gpu from Primus args array.
+# Checks (in order):
+#   1. Bare arg `target_gpu=VALUE` in the args array
+#   2. `target_gpu:` key in the training YAML passed via --config
+# Prints "cuda", "amd", or "auto" (default).
+# Usage: resolve_target_gpu ARRAY_NAME   (pass array name, not value)
+# ---------------------------------------------------------------------------
+resolve_target_gpu() {
+    local -n _rta_args="$1"
+    local _rta_result="auto"
+
+    # 1) bare arg: target_gpu=VALUE
+    local _arg
+    for _arg in "${_rta_args[@]}"; do
+        if [[ "$_arg" =~ ^target_gpu=(.+)$ ]]; then
+            _rta_result="${BASH_REMATCH[1]}"
+            echo "$_rta_result"
+            return 0
+        fi
+    done
+
+    # 2) --config <yaml> path: grep target_gpu
+    local _rta_cfg=""
+    local _rta_i
+    for (( _rta_i=0; _rta_i<${#_rta_args[@]}; _rta_i++ )); do
+        if [[ "${_rta_args[$_rta_i]}" == "--config" ]]; then
+            _rta_cfg="${_rta_args[$((_rta_i+1))]:-}"
+            break
+        fi
+    done
+    if [[ -n "$_rta_cfg" ]] && [[ -f "$_rta_cfg" ]]; then
+        local _rta_val
+        _rta_val=$(grep -E '^target_gpu:[[:space:]]*' "$_rta_cfg" 2>/dev/null \
+                   | head -1 | awk -F':[[:space:]]*' '{print $2}' \
+                   | tr -d '"'"'" | xargs 2>/dev/null || true)
+        if [[ -n "$_rta_val" ]]; then
+            _rta_result="$_rta_val"
+        fi
+    fi
+
+    echo "$_rta_result"
+}
+export -f resolve_target_gpu
+
+# ---------------------------------------------------------------------------
+# Load GPU-specific overlay config (cuda.yaml) on top of the current config.
+# Called after load_config_auto; merges cuda.yaml when NVIDIA is detected.
+# Condition: target_gpu="cuda"  OR  (target_gpu="auto" AND nvidia-smi present
+#            AND rocm-smi absent)
+# Usage: load_gpu_overlay_config "cuda"|"amd"|"auto"
+# ---------------------------------------------------------------------------
+load_gpu_overlay_config() {
+    local _lgo_target="${1:-auto}"
+    # Resolve runner dir relative to this script
+    local _lgo_runner_dir
+    _lgo_runner_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+    local _lgo_is_cuda=false
+    if [[ "$_lgo_target" == "cuda" ]]; then
+        _lgo_is_cuda=true
+    elif [[ "$_lgo_target" == "auto" ]]; then
+        if command -v nvidia-smi &>/dev/null && ! command -v rocm-smi &>/dev/null; then
+            _lgo_is_cuda=true
+        fi
+    fi
+
+    if [[ "$_lgo_is_cuda" == "true" ]]; then
+        local _lgo_overlay="${_lgo_runner_dir}/cuda.yaml"
+        if [[ -f "$_lgo_overlay" ]]; then
+            load_yaml_config "$_lgo_overlay" || {
+                LOG_WARN "[config] Failed to merge GPU overlay: $_lgo_overlay"
+                return 0
+            }
+            LOG_INFO_RANK0 "[config] Auto-merged GPU overlay: $_lgo_overlay"
+        else
+            LOG_WARN "[config] GPU overlay not found: $_lgo_overlay"
+        fi
+    fi
+}
+export -f load_gpu_overlay_config
+
+# ---------------------------------------------------------------------------
 # Export all functions
 # ---------------------------------------------------------------------------
 export -f load_yaml_config load_config_auto resolve_config_file

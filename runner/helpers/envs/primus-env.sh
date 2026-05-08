@@ -43,7 +43,7 @@ detect_gpu_model() {
     # Check if rocm-smi is available; fall back to nvidia-smi for NVIDIA GPUs
     if ! command -v rocm-smi &> /dev/null; then
         if command -v nvidia-smi &> /dev/null; then
-            echo "NVIDIA"
+            echo "cuda"
             return 0
         fi
         echo "unknown"
@@ -67,11 +67,19 @@ detect_gpu_model() {
     echo "$gpu_model"
 }
 
-GPU_MODEL=$(detect_gpu_model)
-if [[ "$GPU_MODEL" == "unknown" ]]; then
-    LOG_WARN "Unable to detect GPU model. Using default configuration."
+# TARGET_GPU env var (set by CLI scripts from training YAML / bare arg) takes
+# priority over SMI-based auto-detection so that SMI-less environments (e.g.
+# Slurm compute nodes, containers without SMI) still get the right GPU config.
+if [[ -n "${TARGET_GPU:-}" ]] && [[ "${TARGET_GPU}" != "auto" ]]; then
+    GPU_MODEL="${TARGET_GPU}"
+    LOG_INFO_RANK0 "GPU model forced by TARGET_GPU: ${GPU_MODEL}"
+else
+    GPU_MODEL=$(detect_gpu_model)
+    if [[ "$GPU_MODEL" == "unknown" ]]; then
+        LOG_WARN "Unable to detect GPU model. Using default configuration."
+    fi
+    LOG_INFO_RANK0 "Detected GPU model: ${GPU_MODEL}"
 fi
-LOG_INFO_RANK0 "Detected GPU model: ${GPU_MODEL}"
 
 GPU_CONFIG_FILE="${SCRIPT_DIR}/${GPU_MODEL}.sh"
 if [[ -f "$GPU_CONFIG_FILE" ]]; then

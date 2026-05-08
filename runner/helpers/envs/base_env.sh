@@ -86,7 +86,22 @@ export MASTER_ADDR=${MASTER_ADDR:-localhost}
 export MASTER_PORT=${MASTER_PORT:-1234}
 export NNODES=${NNODES:-1}
 export NODE_RANK=${NODE_RANK:-0}
-export GPUS_PER_NODE=${GPUS_PER_NODE:-8}
+
+# Auto-detect GPU count via rocm-smi when GPUS_PER_NODE is not already set.
+# If a caller (e.g. primus-cli-direct.sh STEP 3.5) exported GPUS_PER_NODE from
+# the runner config before sourcing this file, the detection is skipped.
+if [[ -z "${GPUS_PER_NODE:-}" ]]; then
+    if command -v rocm-smi &>/dev/null; then
+        _base_detected=$(rocm-smi --showid 2>/dev/null | grep -c "GUID" 2>/dev/null || echo "0")
+        export GPUS_PER_NODE=${_base_detected:-8}
+        LOG_INFO_RANK0 "AMD GPU auto-detected: GPUS_PER_NODE=${GPUS_PER_NODE}"
+    else
+        export GPUS_PER_NODE=8
+    fi
+    unset _base_detected
+else
+    export GPUS_PER_NODE="${GPUS_PER_NODE}"
+fi
 
 log_exported_vars "Training Cluster Info" \
     MASTER_ADDR MASTER_PORT NNODES NODE_RANK GPUS_PER_NODE

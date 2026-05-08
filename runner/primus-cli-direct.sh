@@ -210,12 +210,23 @@ if [[ "$DEBUG_MODE" == "1" ]]; then
 fi
 
 ###############################################################################
+# STEP 1.5: Resolve target_gpu from PRIMUS_ARGS (bare arg or --config YAML)
+###############################################################################
+_direct_target_gpu=$(resolve_target_gpu PRIMUS_ARGS)
+LOG_INFO_RANK0 "[direct] Resolved target_gpu: ${_direct_target_gpu}"
+
+###############################################################################
 # STEP 2: Load configuration files
 ###############################################################################
 load_config_auto "$CONFIG_FILE" "direct" || {
     LOG_ERROR "[direct] Configuration loading failed"
     exit 1
 }
+
+###############################################################################
+# STEP 2.5: Auto-merge GPU overlay config (cuda.yaml when NVIDIA detected)
+###############################################################################
+load_gpu_overlay_config "$_direct_target_gpu"
 
 ###############################################################################
 # STEP 3: Extract direct.* config and apply defaults
@@ -255,6 +266,21 @@ for key in "${!direct_config[@]}"; do
 done
 
 LOG_DEBUG_RANK0 "[direct] Configuration loaded, ready for CLI argument override"
+
+###############################################################################
+# STEP 3.5: Export GPUS_PER_NODE and TARGET_GPU before sourcing primus-env.sh
+# so that cuda.sh / base_env.sh compute CUDA/HIP_VISIBLE_DEVICES correctly.
+###############################################################################
+# Export GPUS_PER_NODE from runner config (gpus_per_node) if explicitly set,
+# before base_env.sh sets its default of 8. This ensures CUDA_VISIBLE_DEVICES
+# is computed from the configured value rather than the default.
+if [[ -n "${direct_config[gpus_per_node]:-}" ]] && \
+   [[ "${direct_config[gpus_per_node]}" != "[]" ]]; then
+    export GPUS_PER_NODE="${direct_config[gpus_per_node]}"
+    LOG_INFO_RANK0 "[direct] GPUS_PER_NODE pre-exported from config: ${GPUS_PER_NODE}"
+fi
+# Export TARGET_GPU so primus-env.sh can skip SMI detection when needed.
+export TARGET_GPU="${_direct_target_gpu}"
 
 ###############################################################################
 # STEP 4: Parse CLI arguments (all stored as newline-separated strings)

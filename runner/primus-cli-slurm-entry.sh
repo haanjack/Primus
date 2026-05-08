@@ -166,6 +166,9 @@ SCRIPT_ARGS+=(
     --env "NODE_RANK=$NODE_RANK"
     --env "GPUS_PER_NODE=$GPUS_PER_NODE"
 )
+if [[ -n "${TARGET_GPU:-}" ]]; then
+    SCRIPT_ARGS+=(--env "TARGET_GPU=$TARGET_GPU")
+fi
 
 # Build script path (container mode only)
 script_path="$RUNNER_DIR/primus-cli-container.sh"

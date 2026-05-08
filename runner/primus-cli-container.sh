@@ -179,6 +179,12 @@ set -- "${PRE_PARSE_ARGS[@]}" -- "${POST_PARSE_ARGS[@]}"
 
 
 ###############################################################################
+# STEP 1.5: Resolve target_gpu from POST_PARSE_ARGS (bare arg or --config YAML)
+###############################################################################
+_container_target_gpu=$(resolve_target_gpu POST_PARSE_ARGS)
+LOG_INFO_RANK0 "[container] Resolved target_gpu: ${_container_target_gpu}"
+
+###############################################################################
 # STEP 2: Load configuration files
 ###############################################################################
 
@@ -186,6 +192,12 @@ load_config_auto "$CONFIG_FILE" "container" || {
     LOG_ERROR "[container] Configuration loading failed"
     exit 1
 }
+
+###############################################################################
+# STEP 2.5: Auto-merge GPU overlay config (cuda.yaml when NVIDIA detected)
+###############################################################################
+load_gpu_overlay_config "$_container_target_gpu"
+export TARGET_GPU="${_container_target_gpu}"
 
 # Extract container.* config parameters
 declare -A container_config
