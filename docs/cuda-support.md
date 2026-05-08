@@ -25,7 +25,7 @@ docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
 ### 1. Build the Docker image
 
 ```bash
-docker build -t primus-cuda:latest -f docker/Dockerfile.cuda .
+docker build -t primus/cuda:latest -f docker/Dockerfile.cuda .
 ```
 
 ### 2. Run training
@@ -88,7 +88,7 @@ use_turbo_grouped_mlp: false
 ```yaml
 container:
   options:
-    image: "primus-cuda:latest"
+    image: "primus/cuda:latest"
     gpus: "all"          # NVIDIA GPU access (replaces ROCm --device flags)
     device: []           # no /dev/kfd or /dev/dri needed
     ...
@@ -114,10 +114,10 @@ The NVIDIA Dockerfile starts from `nvcr.io/nvidia/pytorch:26.01-py3` and install
 - Primus Python dependencies, excluding AMD-only packages like `pyrsmi`
 
 ```bash
-docker build -t primus-cuda:latest -f docker/Dockerfile.cuda .
+docker build -t primus/cuda:latest -f docker/Dockerfile.cuda .
 
 # Use a different base image
-docker build -t primus-cuda:latest -f docker/Dockerfile.cuda \
+docker build -t primus/cuda:latest -f docker/Dockerfile.cuda \
   --build-arg BASE_IMAGE=nvcr.io/nvidia/pytorch:24.12-py3 .
 ```
 
@@ -158,7 +158,7 @@ When `target_gpu: cuda` is set in a MaxText config, the prepare hook (`runner/he
 
 ```bash
 # Megatron-LM: LLaMA 3.2 1B on 2× RTX 3090
-docker build -t primus-cuda:latest -f docker/Dockerfile.cuda .
+docker build -t primus/cuda:latest -f docker/Dockerfile.cuda .
 GPUS_PER_NODE=2 ./primus-cli --config runner/cuda.yaml container \
   -- train pretrain --config examples/megatron/configs/cuda/llama3.2_1B-BF16-pretrain.yaml
 

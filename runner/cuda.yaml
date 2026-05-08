@@ -16,7 +16,7 @@ target_gpu: cuda
 
 container:
   options:
-    image: "primus-cuda:latest"
+    image: "primus/cuda:latest"
 
     ipc: "host"
     network: "host"
