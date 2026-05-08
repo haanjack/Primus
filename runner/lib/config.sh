@@ -461,9 +461,15 @@ export -f resolve_target_gpu
 # ---------------------------------------------------------------------------
 load_gpu_overlay_config() {
     local _lgo_target="${1:-auto}"
-    # Resolve runner dir relative to this script
+    # Prefer RUNNER_DIR already resolved by the calling script; fall back to
+    # BASH_SOURCE-relative path as a last resort (may be unreliable when
+    # config.sh is sourced via a relative path inside a container).
     local _lgo_runner_dir
-    _lgo_runner_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [[ -n "${RUNNER_DIR:-}" ]]; then
+        _lgo_runner_dir="$RUNNER_DIR"
+    else
+        _lgo_runner_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    fi
 
     local _lgo_is_cuda=false
     if [[ "$_lgo_target" == "cuda" ]]; then
